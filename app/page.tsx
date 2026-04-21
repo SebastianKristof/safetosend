@@ -62,18 +62,6 @@ function buildClientId() {
   return `client-${Math.random().toString(36).slice(2, 10)}`
 }
 
-function verdictDescription(verdict: Verdict) {
-  if (verdict === 'OK to send') {
-    return 'The message is clear enough to send.'
-  }
-
-  if (verdict === 'Risky - revise') {
-    return 'The message should be tightened before sending.'
-  }
-
-  return 'The message should be paused and calmed down first.'
-}
-
 function verdictStyle(verdict: Verdict) {
   if (verdict === 'OK to send') {
     return 'verdict-ok'
@@ -182,6 +170,15 @@ export default function Page() {
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }, [analysis, audience, clientId, future, goal, lastChangeNote, past, voiceCommand, workingText])
+
+  useEffect(() => {
+    if (!copied) {
+      return
+    }
+
+    const timer = window.setTimeout(() => setCopied(false), 1200)
+    return () => window.clearTimeout(timer)
+  }, [copied])
 
   const verdictTone = useMemo(() => {
     if (!analysis) {
@@ -337,6 +334,47 @@ export default function Page() {
     lastAnalyzedDraftRef.current = next.draft
   }
 
+  async function copyWorkingText() {
+    const text = workingText.trim()
+
+    if (!text) {
+      setError('Nothing to copy.')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(workingText)
+      setCopied(true)
+      setLastChangeNote('Draft copied')
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Copy failed.')
+    }
+  }
+
+  async function pasteIntoDraft() {
+    if (status !== 'idle') {
+      return
+    }
+
+    try {
+      const text = await navigator.clipboard.readText()
+
+      if (!text.trim()) {
+        setError('Clipboard is empty.')
+        return
+      }
+
+      checkpoint('Before paste')
+      setWorkingText(text)
+      setLastChangeNote('Clipboard pasted')
+      lastAnalyzedDraftRef.current = text
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Paste failed.')
+    }
+  }
+
   function getSpeechRecognition() {
     const win = window as Window & {
       SpeechRecognition?: new () => SpeechRecognitionController
@@ -408,7 +446,6 @@ export default function Page() {
     }
   }
 
-  const verdictText = analysis ? verdictDescription(analysis.verdict) : 'No verdict yet'
   const verdictLabel = analysis ? analysis.verdict : 'Waiting'
   const riskLabel = analysis ? analysis.riskLevel : 'idle'
 
@@ -417,10 +454,9 @@ export default function Page() {
       <header className="hero-bar">
         <div className="hero-copy">
           <p className="eyebrow">SafeToSend</p>
-          <h1>One field. Clearer messages.</h1>
+          <h1>Is it safe to send?</h1>
           <p className="subtle">
-            Paste, type, or capture a voice command. The assistant checks the draft and rewrites it
-            in place.
+            Your second pair of eyes before sending.
           </p>
         </div>
         <div className="status-pill" aria-live="polite">
@@ -440,6 +476,28 @@ export default function Page() {
           </div>
         </div>
 
+        <section className="analysis-card" aria-live="polite">
+          <div className="analysis-topline">
+            <span className={`verdict-pill ${verdictTone}`}>{verdictLabel}</span>
+            <span className={`risk-chip ${riskLabel}`}>{riskLabel}</span>
+          </div>
+          <p className="analysis-meta">
+            {analysis
+              ? `Likely intent: ${analysis.inferredGoal} · Confidence ${Math.round(analysis.confidence * 100)}%`
+              : 'Results appear here after you check or rewrite the message.'}
+          </p>
+          {analysis ? (
+            <div className="analysis-reasons">
+              <p className="analysis-reasons-label">Reasons</p>
+              <ul className="reason-list">
+                {analysis.reasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
+
         <div className="editor-shell">
           <label className="field editor-field">
             <span>Working text</span>
@@ -451,10 +509,10 @@ export default function Page() {
                 setError(null)
               }}
               placeholder="Paste, type, or rewrite the message here."
-            />
+              />
           </label>
 
-          <div className="history-rail" aria-label="Undo redo controls">
+          <div className="history-rail" aria-label="Draft controls">
             <button
               className="ghost-button rail-button"
               onClick={undoLastChange}
@@ -470,6 +528,22 @@ export default function Page() {
               type="button"
             >
               Redo
+            </button>
+            <button
+              className="ghost-button rail-button"
+              onClick={() => void copyWorkingText()}
+              disabled={status !== 'idle' || !workingText.trim()}
+              type="button"
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+            <button
+              className="ghost-button rail-button"
+              onClick={() => void pasteIntoDraft()}
+              disabled={status !== 'idle'}
+              type="button"
+            >
+              Paste
             </button>
           </div>
         </div>
@@ -532,6 +606,15 @@ export default function Page() {
           </label>
 
           <button
+            className="secondary-button edit-button"
+            onClick={() => void runRewrite()}
+            disabled={status !== 'idle' || !workingText.trim()}
+            type="button"
+          >
+            {status === 'rewriting' ? 'Editing...' : 'Edit'}
+          </button>
+
+          <button
             className="ghost-button mic-button"
             onClick={() => void toggleVoiceCommandMic()}
             disabled={(status !== 'idle' && status !== 'listening') || (!speechSupported && status !== 'listening')}
@@ -546,31 +629,6 @@ export default function Page() {
         <p className="micro-copy">
           One field stays active. Voice commands are just test input for rewrite instructions.
         </p>
-
-        <section className="analysis-card" aria-live="polite">
-          <div className="analysis-topline">
-            <span className={`verdict-pill ${verdictTone}`}>{verdictLabel}</span>
-            <span className={`risk-chip ${riskLabel}`}>{riskLabel}</span>
-          </div>
-          <p className="analysis-meta">
-            {analysis
-              ? `Likely intent: ${analysis.inferredGoal} · Confidence ${Math.round(analysis.confidence * 100)}%`
-              : 'Results appear here after you check or rewrite the message.'}
-          </p>
-          <p className="analysis-copy">{verdictText}</p>
-
-          {analysis ? (
-            <details className="analysis-details">
-              <summary>Why this result</summary>
-              <ul className="reason-list">
-                {analysis.reasons.map((reason) => (
-                  <li key={reason}>{reason}</li>
-                ))}
-              </ul>
-              <p className="analysis-footnote">The rewritten text stays in the main field.</p>
-            </details>
-          ) : null}
-        </section>
       </section>
     </main>
   )

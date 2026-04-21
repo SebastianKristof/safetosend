@@ -204,10 +204,11 @@ h2 {
 .history-rail {
   display: grid;
   gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .rail-button {
-  min-width: 4.75rem;
+  min-width: 0;
 }
 
 .control,
@@ -334,9 +335,13 @@ h2 {
 
 .voice-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
   align-items: end;
+}
+
+.edit-button {
+  min-width: 4.75rem;
 }
 
 .mic-button {
@@ -431,13 +436,12 @@ h2 {
   font-size: 0.94rem;
 }
 
-.analysis-details,
+.analysis-reasons,
 .advanced-panel {
   border-top: 1px solid var(--line);
   padding-top: 10px;
 }
 
-.analysis-details summary,
 .advanced-panel summary {
   list-style: none;
   cursor: pointer;
@@ -446,7 +450,6 @@ h2 {
   font-size: 0.9rem;
 }
 
-.analysis-details summary::-webkit-details-marker,
 .advanced-panel summary::-webkit-details-marker {
   display: none;
 }
@@ -463,6 +466,15 @@ h2 {
   margin-top: 10px;
   color: var(--soft);
   font-size: 0.85rem;
+}
+
+.analysis-reasons-label {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .advanced-body {
@@ -507,7 +519,7 @@ h2 {
   }
 
   .rail-button {
-    min-width: 4rem;
+    min-width: 0;
   }
 
   .control-grid {
@@ -516,6 +528,15 @@ h2 {
 
   .button-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .voice-row {
+    grid-template-columns: 1fr;
+  }
+
+  .edit-button,
+  .mic-button {
+    width: 100%;
   }
 
   .panel {
