@@ -20,23 +20,27 @@ const audienceOptions: Array<{ value: Audience; label: string; helper: string }>
 
 const quickActions: QuickAction[] = ['softer', 'firmer', 'shorter', 'more direct', 'more polite']
 
-const verdictLabels: Record<Verdict, string> = {
-  'OK to send': 'OK to send',
-  'Risky - revise': 'Risky',
-  'Do not send yet': 'Do not send',
-}
-
 const STORAGE_KEY = 'safetosend.app.state.v1'
 
 type PersistedState = {
-  inputText: string
+  workingText: string
   audience: Audience
   goal: string
-  currentDraft: string
   analysis: AnalysisResponse | null
   history: DraftSnapshot[]
   lastChangeNote: string
   clientId: string
+}
+
+type SpeechRecognitionController = {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onresult: ((event: any) => void) | null
+  onerror: ((event: any) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
 }
 
 function loadPersistedState(): PersistedState | null {
@@ -116,41 +120,51 @@ async function postAssistant<T>(body: Record<string, unknown>) {
 }
 
 export default function Page() {
-  const [inputText, setInputText] = useState('')
+  const [workingText, setWorkingText] = useState('')
   const [audience, setAudience] = useState<Audience>('other')
   const [goal, setGoal] = useState('')
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
-  const [currentDraft, setCurrentDraft] = useState('')
   const [history, setHistory] = useState<DraftSnapshot[]>([])
-  const [lastChangeNote, setLastChangeNote] = useState('Paste a draft to get a second opinion.')
-  const [status, setStatus] = useState<'idle' | 'analyzing' | 'transforming'>('idle')
+  const [lastChangeNote, setLastChangeNote] = useState('Paste, dictate, or generate a draft.')
+  const [status, setStatus] = useState<'idle' | 'analyzing' | 'transforming' | 'listening'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [clientId, setClientId] = useState('anonymous')
+  const [editInstruction, setEditInstruction] = useState('')
+  const [speechSupported, setSpeechSupported] = useState(false)
 
-  const lastAnalyzedDraftRef = useRef('')
-  const draftOriginRef = useRef<'system' | 'manual'>('system')
-  const analysisTimerRef = useRef<number | null>(null)
+  const recognitionRef = useRef<SpeechRecognitionController | null>(null)
   const hydratedRef = useRef(false)
+  const lastAnalyzedDraftRef = useRef('')
 
   useEffect(() => {
     const persisted = loadPersistedState()
 
     if (persisted) {
-      setInputText(persisted.inputText)
+      setWorkingText(persisted.workingText)
       setAudience(persisted.audience)
       setGoal(persisted.goal)
       setAnalysis(persisted.analysis)
-      setCurrentDraft(persisted.currentDraft)
       setHistory(persisted.history)
       setLastChangeNote(persisted.lastChangeNote)
       setClientId(persisted.clientId || buildClientId())
-      lastAnalyzedDraftRef.current = persisted.currentDraft || persisted.inputText
+      lastAnalyzedDraftRef.current = persisted.workingText
     } else {
       setClientId(buildClientId())
     }
 
+    const win = window as Window & {
+      SpeechRecognition?: new () => SpeechRecognitionController
+      webkitSpeechRecognition?: new () => SpeechRecognitionController
+    }
+
+    setSpeechSupported(Boolean(win.SpeechRecognition || win.webkitSpeechRecognition))
+
     hydratedRef.current = true
+
+    return () => {
+      recognitionRef.current?.stop()
+    }
   }, [])
 
   useEffect(() => {
@@ -159,10 +173,9 @@ export default function Page() {
     }
 
     const state: PersistedState = {
-      inputText,
+      workingText,
       audience,
       goal,
-      currentDraft,
       analysis,
       history,
       lastChangeNote,
@@ -170,41 +183,9 @@ export default function Page() {
     }
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [analysis, audience, clientId, currentDraft, goal, history, inputText, lastChangeNote])
+  }, [analysis, audience, clientId, goal, history, lastChangeNote, workingText])
 
-  useEffect(() => {
-    if (draftOriginRef.current !== 'manual') {
-      return
-    }
-
-    if (status !== 'idle') {
-      return
-    }
-
-    if (currentDraft.trim().length < 3) {
-      return
-    }
-
-    if (currentDraft === lastAnalyzedDraftRef.current) {
-      return
-    }
-
-    if (analysisTimerRef.current) {
-      window.clearTimeout(analysisTimerRef.current)
-    }
-
-    analysisTimerRef.current = window.setTimeout(() => {
-      void analyzeCurrentDraft(currentDraft)
-    }, 700)
-
-    return () => {
-      if (analysisTimerRef.current) {
-        window.clearTimeout(analysisTimerRef.current)
-      }
-    }
-  }, [currentDraft, status])
-
-  const verdictTone = useMemo(() => {
+  const analysisTone = useMemo(() => {
     if (!analysis) {
       return 'neutral'
     }
@@ -212,9 +193,21 @@ export default function Page() {
     return verdictStyle(analysis.verdict)
   }, [analysis])
 
+  const draftIsStale = Boolean(analysis) && workingText.trim() !== lastAnalyzedDraftRef.current.trim()
+  const statusText =
+    status === 'listening'
+      ? 'Listening'
+      : status === 'analyzing'
+        ? 'Checking'
+        : status === 'transforming'
+          ? 'Working'
+          : draftIsStale
+            ? 'Draft changed'
+            : lastChangeNote
+
   function pushHistorySnapshot(note: string) {
     const snapshot: DraftSnapshot = {
-      draft: currentDraft || inputText,
+      draft: workingText,
       analysis,
       note,
     }
@@ -246,14 +239,13 @@ export default function Page() {
       setAnalysis(result)
 
       if (commitDraft) {
-        setCurrentDraft(result.suggestedText)
+        setWorkingText(result.suggestedText)
         lastAnalyzedDraftRef.current = result.suggestedText
       } else {
         lastAnalyzedDraftRef.current = textToAnalyze
       }
 
       setLastChangeNote(`Assistant updated: ${result.verdict}`)
-      draftOriginRef.current = 'system'
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed.')
     } finally {
@@ -261,32 +253,67 @@ export default function Page() {
     }
   }
 
-  async function runMainAnalysis() {
-    const source = currentDraft.trim() || inputText.trim()
+  async function runGenerate() {
+    const seed = workingText.trim()
+
+    if (!seed && !goal.trim()) {
+      setError('Add a goal or some notes first.')
+      return
+    }
+
+    pushHistorySnapshot('Before generate')
+    setStatus('transforming')
+    setError(null)
+
+    try {
+      const result = await postAssistant<TransformResponse>({
+        mode: 'generate',
+        text: seed,
+        audience,
+        goal,
+        clientId,
+        analysisContext: analysis
+          ? {
+              verdict: analysis.verdict,
+              reasons: analysis.reasons,
+              inferredGoal: analysis.inferredGoal,
+            }
+          : undefined,
+      })
+
+      setWorkingText(result.updatedText)
+      setLastChangeNote(result.note)
+      lastAnalyzedDraftRef.current = result.updatedText
+      await analyzeCurrentDraft(result.updatedText)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generation failed.')
+      setStatus('idle')
+    }
+  }
+
+  async function runCheck() {
+    const source = workingText.trim()
 
     if (source.length < 3) {
       setError('Paste a draft first.')
       return
     }
 
-    if (currentDraft || analysis) {
-      pushHistorySnapshot('Before new analysis')
-    }
-
+    pushHistorySnapshot('Before check')
     await analyzeCurrentDraft(source, { commitDraft: true })
   }
 
   async function applyQuickAction(action: QuickAction) {
-    const source = currentDraft.trim()
+    const source = workingText.trim()
 
     if (source.length < 3) {
-      setError('Run the analysis first.')
+      setError('Add a draft first.')
       return
     }
 
+    pushHistorySnapshot(`Before ${action}`)
     setStatus('transforming')
     setError(null)
-    pushHistorySnapshot(`Before ${action}`)
 
     try {
       const result = await postAssistant<TransformResponse>({
@@ -305,35 +332,33 @@ export default function Page() {
           : undefined,
       })
 
-      setCurrentDraft(result.updatedText)
+      setWorkingText(result.updatedText)
       setLastChangeNote(result.note)
-      draftOriginRef.current = 'system'
+      lastAnalyzedDraftRef.current = result.updatedText
       await analyzeCurrentDraft(result.updatedText)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Quick action failed.')
-    } finally {
       setStatus('idle')
     }
   }
 
-  async function applyLocalEdit() {
-    const source = currentDraft.trim()
+  async function applyCustomEdit() {
+    const source = workingText.trim()
+    const instruction = editInstruction.trim()
 
     if (source.length < 3) {
-      setError('Run the analysis first.')
+      setError('Add a draft first.')
       return
     }
-
-    const instruction = (editInstructionRef.current?.value || '').trim()
 
     if (!instruction) {
       setError('Add an edit instruction.')
       return
     }
 
+    pushHistorySnapshot('Before edit')
     setStatus('transforming')
     setError(null)
-    pushHistorySnapshot('Before local edit')
 
     try {
       const result = await postAssistant<TransformResponse>({
@@ -352,16 +377,13 @@ export default function Page() {
           : undefined,
       })
 
-      setCurrentDraft(result.updatedText)
+      setWorkingText(result.updatedText)
       setLastChangeNote(result.note)
-      draftOriginRef.current = 'system'
-      if (editInstructionRef.current) {
-        editInstructionRef.current.value = ''
-      }
+      setEditInstruction('')
+      lastAnalyzedDraftRef.current = result.updatedText
       await analyzeCurrentDraft(result.updatedText)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Edit failed.')
-    } finally {
       setStatus('idle')
     }
   }
@@ -374,17 +396,14 @@ export default function Page() {
     }
 
     setHistory((existing) => existing.slice(0, -1))
-    setCurrentDraft(previous.draft)
+    setWorkingText(previous.draft)
     setAnalysis(previous.analysis)
     setLastChangeNote(previous.note)
     lastAnalyzedDraftRef.current = previous.draft
-    draftOriginRef.current = 'system'
   }
 
-  const editInstructionRef = useRef<HTMLTextAreaElement | null>(null)
-
   async function copyCurrentDraft() {
-    const text = currentDraft.trim()
+    const text = workingText.trim()
 
     if (!text) {
       return
@@ -395,188 +414,258 @@ export default function Page() {
     window.setTimeout(() => setCopied(false), 1200)
   }
 
+  function getSpeechRecognition() {
+    const win = window as Window & {
+      SpeechRecognition?: new () => SpeechRecognitionController
+      webkitSpeechRecognition?: new () => SpeechRecognitionController
+    }
+
+    return win.SpeechRecognition ?? win.webkitSpeechRecognition ?? null
+  }
+
+  function appendTranscript(transcript: string) {
+    const cleaned = transcript.trim()
+    if (!cleaned) {
+      return
+    }
+
+    setWorkingText((previous) => {
+      const prefix = previous.trim()
+      return prefix ? `${prefix} ${cleaned}` : cleaned
+    })
+  }
+
+  async function toggleDictation() {
+    if (status === 'listening') {
+      recognitionRef.current?.stop()
+      return
+    }
+
+    if (!speechSupported) {
+      setError('Speech recognition is not available in this browser.')
+      return
+    }
+
+    const Recognition = getSpeechRecognition()
+
+    if (!Recognition) {
+      setError('Speech recognition is not available in this browser.')
+      return
+    }
+
+    if (!recognitionRef.current) {
+      const recognition = new Recognition()
+      recognition.lang = 'en-US'
+      recognition.continuous = false
+      recognition.interimResults = false
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results ?? [])
+          .map((result: any) => result?.[0]?.transcript || '')
+          .join(' ')
+        appendTranscript(transcript)
+        setLastChangeNote('Dictation added text')
+      }
+      recognition.onerror = (event: any) => {
+        setError(`Dictation failed${event?.error ? `: ${event.error}` : '.'}`)
+        setStatus('idle')
+      }
+      recognition.onend = () => {
+        setStatus((current) => (current === 'listening' ? 'idle' : current))
+      }
+      recognitionRef.current = recognition
+    }
+
+    setError(null)
+    setStatus('listening')
+
+    try {
+      recognitionRef.current.start()
+    } catch (err) {
+      setStatus('idle')
+      setError(err instanceof Error ? err.message : 'Could not start dictation.')
+    }
+  }
+
+  const verdictText = analysis ? verdictDescription(analysis.verdict) : 'No verdict yet'
+  const verdictLabel = analysis ? analysis.verdict : 'Waiting'
+  const riskLabel = analysis ? analysis.riskLevel : 'idle'
+
   return (
     <main className="page-shell">
-      <div className="ambient ambient-left" />
-      <div className="ambient ambient-right" />
-
-      <section className="hero-bar">
-        <div>
+      <header className="hero-bar">
+        <div className="hero-copy">
           <p className="eyebrow">SafeToSend</p>
-          <h1>Second opinion before you send.</h1>
+          <h1>One field. Fast second opinion.</h1>
           <p className="subtle">
-            Paste the draft, get a verdict, tighten the wording, and ship the safer version.
+            Paste, dictate, or generate in one place. The assistant keeps the message clear and
+            safe to send.
           </p>
         </div>
-        <div className="status-pill">
+        <div className="status-pill" aria-live="polite">
           <span className={`status-dot ${status === 'idle' ? 'idle' : 'busy'}`} />
-          <span>{status === 'idle' ? lastChangeNote : 'Working with the model'}</span>
+          <span>{statusText}</span>
         </div>
-      </section>
+      </header>
 
-      <section className="grid">
-        <div className="panel input-panel">
-          <div className="panel-head">
-            <div>
-              <p className="panel-kicker">Draft</p>
-              <h2>What are you about to send?</h2>
-            </div>
-            <div className="panel-hint">Model-first, no heuristics</div>
+      <section className="panel composer-card">
+        <div className="panel-head">
+          <div>
+            <p className="panel-kicker">Composer</p>
+            <h2>The message lives here.</h2>
           </div>
+          <div className={`analysis-badge ${draftIsStale ? 'stale' : 'fresh'}`}>
+            {analysis ? verdictLabel : 'Ready'}
+          </div>
+        </div>
 
+        <label className="field">
+          <span>Working text</span>
+          <textarea
+            className="text-input draft-input"
+            value={workingText}
+            onChange={(event) => {
+              setWorkingText(event.target.value)
+              setError(null)
+            }}
+            placeholder="Paste, type, dictate, or generate the message here."
+          />
+        </label>
+
+        <div className="control-grid">
           <label className="field">
-            <span>Message draft</span>
-            <textarea
-              className="text-input draft-input"
-              value={inputText}
-              onChange={(event) => setInputText(event.target.value)}
-              placeholder="Why did you do it like this?"
-            />
+            <span>Audience</span>
+            <select
+              className="control"
+              value={audience}
+              onChange={(event) => setAudience(event.target.value as Audience)}
+            >
+              {audienceOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label} - {option.helper}
+                </option>
+              ))}
+            </select>
           </label>
 
-          <div className="row">
-            <label className="field grow">
-              <span>Audience</span>
-              <select
-                className="control"
-                value={audience}
-                onChange={(event) => setAudience(event.target.value as Audience)}
-              >
-                {audienceOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label} - {option.helper}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <label className="field">
+            <span>Goal</span>
+            <input
+              className="control"
+              value={goal}
+              onChange={(event) => setGoal(event.target.value)}
+              placeholder="Ask for clarification"
+            />
+          </label>
+        </div>
 
-            <label className="field grow">
-              <span>Goal</span>
-              <input
-                className="control"
-                value={goal}
-                onChange={(event) => setGoal(event.target.value)}
-                placeholder="Ask for clarification"
-              />
-            </label>
-          </div>
-
+        <div className="button-grid">
+          <button className="primary-button" onClick={() => void runGenerate()} type="button">
+            {status === 'transforming' ? 'Working...' : 'Generate'}
+          </button>
           <button
-            className="primary-button"
-            onClick={runMainAnalysis}
-            disabled={status !== 'idle' || inputText.trim().length < 3}
+            className="secondary-button"
+            onClick={() => void runCheck()}
+            disabled={status !== 'idle' || workingText.trim().length < 3}
             type="button"
           >
-            {status === 'analyzing' ? 'Checking...' : 'Check before sending'}
+            {status === 'analyzing' ? 'Checking...' : 'Check'}
           </button>
-
-          {error ? <div className="error-banner">{error}</div> : null}
+          <button
+            className="ghost-button"
+            onClick={() => void toggleDictation()}
+            disabled={!speechSupported && status !== 'listening'}
+            type="button"
+          >
+            {status === 'listening' ? 'Stop' : 'Dictate'}
+          </button>
         </div>
 
-        <div className="panel result-panel">
-          <div className="panel-head">
-            <div>
-              <p className="panel-kicker">Assistant</p>
-              <h2>Risk, rewrite, and local edits</h2>
-            </div>
-            {analysis ? (
-              <div className={`verdict-badge ${verdictTone}`}>{analysis.verdict}</div>
-            ) : (
-              <div className="verdict-badge neutral">Waiting</div>
-            )}
+        {error ? <div className="error-banner">{error}</div> : null}
+
+        <p className="micro-copy">
+          One field stays active. The rest of the screen stays secondary.
+        </p>
+
+        <section className="analysis-card" aria-live="polite">
+          <div className="analysis-topline">
+            <span className={`verdict-pill ${analysisTone}`}>{verdictLabel}</span>
+            <span className={`risk-chip ${riskLabel}`}>{riskLabel}</span>
           </div>
+          <p className="analysis-meta">
+            {analysis
+              ? `Likely intent: ${analysis.inferredGoal} · Confidence ${Math.round(analysis.confidence * 100)}%`
+              : 'Results appear here after you generate or check the message.'}
+          </p>
+          <p className="analysis-copy">{verdictText}</p>
 
-          {!analysis ? (
-            <div className="empty-state">
-              <p className="empty-title">Paste a draft and get a second opinion before you send it.</p>
-              <p className="empty-copy">
-                The assistant will return a verdict, concise reasons, and a safer rewrite.
-              </p>
-            </div>
-          ) : (
-            <div className="stack">
-              <div className="analysis-card">
-                <div className="analysis-topline">
-                  <span className={`risk-chip ${analysis.riskLevel}`}>{analysis.riskLevel}</span>
-                  <span>{verdictDescription(analysis.verdict)}</span>
-                </div>
-                <p className="analysis-meta">
-                  Likely intent: {analysis.inferredGoal} · Confidence {Math.round(analysis.confidence * 100)}%
-                </p>
-                <ul className="reason-list">
-                  {analysis.reasons.map((reason) => (
-                    <li key={reason}>{reason}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <label className="field">
-                <span>Suggested message</span>
-                <textarea
-                  className="text-input suggestion-input"
-                  value={currentDraft}
-                  onChange={(event) => {
-                    draftOriginRef.current = 'manual'
-                    setCurrentDraft(event.target.value)
-                  }}
-                  placeholder="Your safer version appears here."
-                />
-              </label>
-
-              <div className="quick-actions">
-                {quickActions.map((action) => (
-                  <button
-                    key={action}
-                    className="secondary-button"
-                    onClick={() => void applyQuickAction(action)}
-                    disabled={status !== 'idle' || !currentDraft.trim()}
-                    type="button"
-                  >
-                    {action}
-                  </button>
+          {analysis ? (
+            <details className="analysis-details">
+              <summary>Why this result</summary>
+              <ul className="reason-list">
+                {analysis.reasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
                 ))}
-              </div>
+              </ul>
+              <p className="analysis-footnote">The rewritten text stays in the main field.</p>
+            </details>
+          ) : null}
+        </section>
 
-              <div className="edit-block">
-                <label className="field">
-                  <span>Local edit instruction</span>
-                  <textarea
-                    ref={editInstructionRef}
-                    className="text-input edit-input"
-                    placeholder='replace "review" with "look over"'
-                  />
-                </label>
-
-                <div className="row action-row">
-                  <button
-                    className="secondary-button"
-                    onClick={() => void applyLocalEdit()}
-                    disabled={status !== 'idle' || !currentDraft.trim()}
-                    type="button"
-                  >
-                    {status === 'transforming' ? 'Applying...' : 'Apply edit'}
-                  </button>
-                  <button
-                    className="ghost-button"
-                    onClick={undoLastChange}
-                    disabled={!history.length || status !== 'idle'}
-                    type="button"
-                  >
-                    Undo
-                  </button>
-                  <button
-                    className="ghost-button"
-                    onClick={() => void copyCurrentDraft()}
-                    disabled={!currentDraft.trim()}
-                    type="button"
-                  >
-                    {copied ? 'Copied' : 'Copy'}
-                  </button>
-                </div>
-              </div>
+        <details className="advanced-panel">
+          <summary>Refine and history</summary>
+          <div className="advanced-body">
+            <div className="chip-row">
+              {quickActions.map((action) => (
+                <button
+                  key={action}
+                  className="chip-button"
+                  onClick={() => void applyQuickAction(action)}
+                  disabled={status !== 'idle' || !workingText.trim()}
+                  type="button"
+                >
+                  {action}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+
+            <label className="field">
+              <span>Custom edit</span>
+              <textarea
+                className="text-input edit-input"
+                value={editInstruction}
+                onChange={(event) => setEditInstruction(event.target.value)}
+                placeholder='replace "review" with "look over"'
+              />
+            </label>
+
+            <div className="action-row">
+              <button
+                className="secondary-button"
+                onClick={() => void applyCustomEdit()}
+                disabled={status !== 'idle' || !workingText.trim()}
+                type="button"
+              >
+                {status === 'transforming' ? 'Applying...' : 'Apply edit'}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={undoLastChange}
+                disabled={!history.length || status !== 'idle'}
+                type="button"
+              >
+                Undo
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => void copyCurrentDraft()}
+                disabled={!workingText.trim()}
+                type="button"
+              >
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+          </div>
+        </details>
       </section>
     </main>
   )

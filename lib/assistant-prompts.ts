@@ -14,6 +14,7 @@ type PromptBundle = {
   analyzeSystem: string
   analyzeUser: string
   transformSystem: string
+  generateUser: string
   quickActionUser: string
   editUser: string
 }
@@ -31,14 +32,16 @@ export async function getPromptBundle() {
       readPrompt('prompts/analyze-system.md'),
       readPrompt('prompts/analyze-user.md'),
       readPrompt('prompts/transform-system.md'),
+      readPrompt('prompts/generate-user.md'),
       readPrompt('prompts/quick-action-user.md'),
       readPrompt('prompts/edit-user.md'),
     ]).then(
-      ([analyzeSystem, analyzeUser, transformSystem, quickActionUser, editUser]) =>
+      ([analyzeSystem, analyzeUser, transformSystem, generateUser, quickActionUser, editUser]) =>
         ({
           analyzeSystem,
           analyzeUser,
           transformSystem,
+          generateUser,
           quickActionUser,
           editUser,
         }) satisfies PromptBundle,
@@ -71,6 +74,19 @@ export function buildQuickActionPrompt(request: AssistantRequest, action: QuickA
     audience_tone: audienceTone[request.audience],
     goal,
     action,
+    context,
+    text: request.text.trim(),
+  })
+}
+
+export function buildGeneratePrompt(request: AssistantRequest, template: string) {
+  const goal = request.goal.trim() || 'Not specified'
+  const context = buildAnalysisContext(request)
+
+  return renderPrompt(template, {
+    audience: request.audience,
+    audience_tone: audienceTone[request.audience],
+    goal,
     context,
     text: request.text.trim(),
   })

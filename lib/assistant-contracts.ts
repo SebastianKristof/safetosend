@@ -30,8 +30,8 @@ export const transformResponseSchema = z.object({
 })
 
 export const assistantRequestSchema = z.object({
-  mode: z.enum(['analyze', 'action', 'edit']),
-  text: z.string().min(3),
+  mode: z.enum(['analyze', 'action', 'edit', 'generate']),
+  text: z.string().default(''),
   audience: audienceSchema,
   goal: z.string().default(''),
   action: quickActionSchema.optional(),

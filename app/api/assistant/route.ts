@@ -8,6 +8,7 @@ import {
 import { getInferenceConfig, resolveInferenceModel } from '@/lib/inference-config'
 import {
   buildAnalysisPrompt,
+  buildGeneratePrompt,
   buildEditPrompt,
   buildQuickActionPrompt,
   getPromptBundle,
@@ -44,6 +45,10 @@ export async function POST(request: Request) {
 
   try {
     if (payload.mode === 'analyze') {
+      if (payload.text.trim().length < 3) {
+        return NextResponse.json({ error: 'Missing draft text.' }, { status: 400 })
+      }
+
       const slot = inferenceConfig.textAnalysis
       const model = resolveInferenceModel(slot)
 
@@ -62,7 +67,30 @@ export async function POST(request: Request) {
       return NextResponse.json(result.output)
     }
 
+    if (payload.mode === 'generate') {
+      const slot = inferenceConfig.textGeneration
+      const model = resolveInferenceModel(slot)
+
+      const result = await generateText({
+        model,
+        system: prompts.transformSystem,
+        prompt: buildGeneratePrompt(payload, prompts.generateUser),
+        output: Output.object({
+          schema: transformResponseSchema,
+        }),
+        temperature: 0.55,
+        maxOutputTokens: 320,
+        providerOptions: buildProviderOptions(slot.provider),
+      })
+
+      return NextResponse.json(result.output)
+    }
+
     if (payload.mode === 'action') {
+      if (payload.text.trim().length < 3) {
+        return NextResponse.json({ error: 'Missing draft text.' }, { status: 400 })
+      }
+
       if (!payload.action) {
         return NextResponse.json({ error: 'Missing quick action.' }, { status: 400 })
       }
@@ -83,6 +111,10 @@ export async function POST(request: Request) {
       })
 
       return NextResponse.json(result.output)
+    }
+
+    if (payload.text.trim().length < 3) {
+      return NextResponse.json({ error: 'Missing draft text.' }, { status: 400 })
     }
 
     if (!payload.instruction?.trim()) {
