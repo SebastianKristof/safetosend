@@ -2,14 +2,6 @@ import { z } from 'zod'
 
 export const audienceSchema = z.enum(['boss', 'client', 'colleague', 'partner', 'other'])
 
-export const quickActionSchema = z.enum([
-  'softer',
-  'firmer',
-  'shorter',
-  'more direct',
-  'more polite',
-])
-
 export const verdictSchema = z.enum(['OK to send', 'Risky - revise', 'Do not send yet'])
 
 export const riskLevelSchema = z.enum(['low', 'medium', 'high'])
@@ -30,11 +22,10 @@ export const transformResponseSchema = z.object({
 })
 
 export const assistantRequestSchema = z.object({
-  mode: z.enum(['analyze', 'action', 'edit']),
-  text: z.string().min(3),
+  mode: z.enum(['analyze', 'edit']),
+  text: z.string().default(''),
   audience: audienceSchema,
   goal: z.string().default(''),
-  action: quickActionSchema.optional(),
   instruction: z.string().optional(),
   clientId: z.string().optional(),
   analysisContext: z
@@ -47,7 +38,6 @@ export const assistantRequestSchema = z.object({
 })
 
 export type Audience = z.infer<typeof audienceSchema>
-export type QuickAction = z.infer<typeof quickActionSchema>
 export type Verdict = z.infer<typeof verdictSchema>
 export type AnalysisResponse = z.infer<typeof analysisResponseSchema>
 export type TransformResponse = z.infer<typeof transformResponseSchema>

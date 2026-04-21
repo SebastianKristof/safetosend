@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import type { AnalysisResponse, AssistantRequest, QuickAction } from './assistant-contracts'
+import type { AnalysisResponse, AssistantRequest } from './assistant-contracts'
 
 const audienceTone = {
   boss: 'professional, concise, and respectful',
@@ -14,7 +14,6 @@ type PromptBundle = {
   analyzeSystem: string
   analyzeUser: string
   transformSystem: string
-  quickActionUser: string
   editUser: string
 }
 
@@ -31,15 +30,13 @@ export async function getPromptBundle() {
       readPrompt('prompts/analyze-system.md'),
       readPrompt('prompts/analyze-user.md'),
       readPrompt('prompts/transform-system.md'),
-      readPrompt('prompts/quick-action-user.md'),
       readPrompt('prompts/edit-user.md'),
     ]).then(
-      ([analyzeSystem, analyzeUser, transformSystem, quickActionUser, editUser]) =>
+      ([analyzeSystem, analyzeUser, transformSystem, editUser]) =>
         ({
           analyzeSystem,
           analyzeUser,
           transformSystem,
-          quickActionUser,
           editUser,
         }) satisfies PromptBundle,
     )
@@ -58,20 +55,6 @@ export function buildAnalysisPrompt(request: AssistantRequest, template: string)
     audience: request.audience,
     audience_tone: audienceTone[request.audience],
     goal,
-    text: request.text.trim(),
-  })
-}
-
-export function buildQuickActionPrompt(request: AssistantRequest, action: QuickAction, template: string) {
-  const goal = request.goal.trim() || 'Not specified'
-  const context = buildAnalysisContext(request)
-
-  return renderPrompt(template, {
-    audience: request.audience,
-    audience_tone: audienceTone[request.audience],
-    goal,
-    action,
-    context,
     text: request.text.trim(),
   })
 }

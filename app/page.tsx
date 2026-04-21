@@ -1,14 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type {
-  AnalysisResponse,
-  Audience,
-  QuickAction,
-  Verdict,
-  TransformResponse,
-} from '@/lib/assistant-contracts'
+import type { AnalysisResponse, Audience, TransformResponse, Verdict } from '@/lib/assistant-contracts'
 import type { DraftSnapshot } from '@/lib/assistant-client'
+
+const STORAGE_KEY = 'safetosend.app.state.v2'
 
 const audienceOptions: Array<{ value: Audience; label: string; helper: string }> = [
   { value: 'boss', label: 'Boss', helper: 'Short, clear, low-friction' },
@@ -18,25 +14,27 @@ const audienceOptions: Array<{ value: Audience; label: string; helper: string }>
   { value: 'other', label: 'Other', helper: 'Neutral and adaptive' },
 ]
 
-const quickActions: QuickAction[] = ['softer', 'firmer', 'shorter', 'more direct', 'more polite']
-
-const verdictLabels: Record<Verdict, string> = {
-  'OK to send': 'OK to send',
-  'Risky - revise': 'Risky',
-  'Do not send yet': 'Do not send',
-}
-
-const STORAGE_KEY = 'safetosend.app.state.v1'
-
 type PersistedState = {
-  inputText: string
+  workingText: string
   audience: Audience
   goal: string
-  currentDraft: string
+  voiceCommand: string
   analysis: AnalysisResponse | null
-  history: DraftSnapshot[]
+  past: DraftSnapshot[]
+  future: DraftSnapshot[]
   lastChangeNote: string
   clientId: string
+}
+
+type SpeechRecognitionController = {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onresult: ((event: any) => void) | null
+  onerror: ((event: any) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
 }
 
 function loadPersistedState(): PersistedState | null {
@@ -62,18 +60,6 @@ function buildClientId() {
   }
 
   return `client-${Math.random().toString(36).slice(2, 10)}`
-}
-
-function verdictDescription(verdict: Verdict) {
-  if (verdict === 'OK to send') {
-    return 'The message is clear enough to send.'
-  }
-
-  if (verdict === 'Risky - revise') {
-    return 'The message should be tightened before sending.'
-  }
-
-  return 'The message should be paused and calmed down first.'
 }
 
 function verdictStyle(verdict: Verdict) {
@@ -116,41 +102,53 @@ async function postAssistant<T>(body: Record<string, unknown>) {
 }
 
 export default function Page() {
-  const [inputText, setInputText] = useState('')
+  const [workingText, setWorkingText] = useState('')
   const [audience, setAudience] = useState<Audience>('other')
   const [goal, setGoal] = useState('')
+  const [voiceCommand, setVoiceCommand] = useState('')
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
-  const [currentDraft, setCurrentDraft] = useState('')
-  const [history, setHistory] = useState<DraftSnapshot[]>([])
-  const [lastChangeNote, setLastChangeNote] = useState('Paste a draft to get a second opinion.')
-  const [status, setStatus] = useState<'idle' | 'analyzing' | 'transforming'>('idle')
+  const [past, setPast] = useState<DraftSnapshot[]>([])
+  const [future, setFuture] = useState<DraftSnapshot[]>([])
+  const [lastChangeNote, setLastChangeNote] = useState('Paste, dictate, or write a draft.')
+  const [status, setStatus] = useState<'idle' | 'analyzing' | 'rewriting' | 'listening'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [clientId, setClientId] = useState('anonymous')
+  const [speechSupported, setSpeechSupported] = useState(false)
 
-  const lastAnalyzedDraftRef = useRef('')
-  const draftOriginRef = useRef<'system' | 'manual'>('system')
-  const analysisTimerRef = useRef<number | null>(null)
+  const recognitionRef = useRef<SpeechRecognitionController | null>(null)
   const hydratedRef = useRef(false)
+  const lastAnalyzedDraftRef = useRef('')
 
   useEffect(() => {
     const persisted = loadPersistedState()
 
     if (persisted) {
-      setInputText(persisted.inputText)
+      setWorkingText(persisted.workingText)
       setAudience(persisted.audience)
       setGoal(persisted.goal)
+      setVoiceCommand(persisted.voiceCommand || '')
       setAnalysis(persisted.analysis)
-      setCurrentDraft(persisted.currentDraft)
-      setHistory(persisted.history)
+      setPast(persisted.past)
+      setFuture(persisted.future)
       setLastChangeNote(persisted.lastChangeNote)
       setClientId(persisted.clientId || buildClientId())
-      lastAnalyzedDraftRef.current = persisted.currentDraft || persisted.inputText
+      lastAnalyzedDraftRef.current = persisted.workingText
     } else {
       setClientId(buildClientId())
     }
 
+    const win = window as Window & {
+      SpeechRecognition?: new () => SpeechRecognitionController
+      webkitSpeechRecognition?: new () => SpeechRecognitionController
+    }
+
+    setSpeechSupported(Boolean(win.SpeechRecognition || win.webkitSpeechRecognition))
     hydratedRef.current = true
+
+    return () => {
+      recognitionRef.current?.stop()
+    }
   }, [])
 
   useEffect(() => {
@@ -159,50 +157,28 @@ export default function Page() {
     }
 
     const state: PersistedState = {
-      inputText,
+      workingText,
       audience,
       goal,
-      currentDraft,
+      voiceCommand,
       analysis,
-      history,
+      past,
+      future,
       lastChangeNote,
       clientId,
     }
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [analysis, audience, clientId, currentDraft, goal, history, inputText, lastChangeNote])
+  }, [analysis, audience, clientId, future, goal, lastChangeNote, past, voiceCommand, workingText])
 
   useEffect(() => {
-    if (draftOriginRef.current !== 'manual') {
+    if (!copied) {
       return
     }
 
-    if (status !== 'idle') {
-      return
-    }
-
-    if (currentDraft.trim().length < 3) {
-      return
-    }
-
-    if (currentDraft === lastAnalyzedDraftRef.current) {
-      return
-    }
-
-    if (analysisTimerRef.current) {
-      window.clearTimeout(analysisTimerRef.current)
-    }
-
-    analysisTimerRef.current = window.setTimeout(() => {
-      void analyzeCurrentDraft(currentDraft)
-    }, 700)
-
-    return () => {
-      if (analysisTimerRef.current) {
-        window.clearTimeout(analysisTimerRef.current)
-      }
-    }
-  }, [currentDraft, status])
+    const timer = window.setTimeout(() => setCopied(false), 1200)
+    return () => window.clearTimeout(timer)
+  }, [copied])
 
   const verdictTone = useMemo(() => {
     if (!analysis) {
@@ -212,14 +188,29 @@ export default function Page() {
     return verdictStyle(analysis.verdict)
   }, [analysis])
 
-  function pushHistorySnapshot(note: string) {
-    const snapshot: DraftSnapshot = {
-      draft: currentDraft || inputText,
+  const draftIsStale = Boolean(analysis) && workingText.trim() !== lastAnalyzedDraftRef.current.trim()
+  const statusText =
+    status === 'listening'
+      ? 'Listening'
+      : status === 'analyzing'
+        ? 'Checking'
+        : status === 'rewriting'
+          ? 'Rewriting'
+          : draftIsStale
+            ? 'Draft changed'
+            : lastChangeNote
+
+  function currentSnapshot(note = lastChangeNote): DraftSnapshot {
+    return {
+      draft: workingText,
       analysis,
       note,
     }
+  }
 
-    setHistory((existing) => [...existing, snapshot].slice(-20))
+  function checkpoint(note: string) {
+    setPast((existing) => [...existing, currentSnapshot(note)].slice(-20))
+    setFuture([])
   }
 
   async function analyzeCurrentDraft(textToAnalyze: string, options?: { commitDraft?: boolean }) {
@@ -246,14 +237,13 @@ export default function Page() {
       setAnalysis(result)
 
       if (commitDraft) {
-        setCurrentDraft(result.suggestedText)
+        setWorkingText(result.suggestedText)
         lastAnalyzedDraftRef.current = result.suggestedText
       } else {
         lastAnalyzedDraftRef.current = textToAnalyze
       }
 
       setLastChangeNote(`Assistant updated: ${result.verdict}`)
-      draftOriginRef.current = 'system'
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed.')
     } finally {
@@ -261,79 +251,30 @@ export default function Page() {
     }
   }
 
-  async function runMainAnalysis() {
-    const source = currentDraft.trim() || inputText.trim()
+  async function runCheck() {
+    const source = workingText.trim()
 
     if (source.length < 3) {
       setError('Paste a draft first.')
       return
     }
 
-    if (currentDraft || analysis) {
-      pushHistorySnapshot('Before new analysis')
-    }
-
-    await analyzeCurrentDraft(source, { commitDraft: true })
+    checkpoint('Before check')
+    await analyzeCurrentDraft(source)
   }
 
-  async function applyQuickAction(action: QuickAction) {
-    const source = currentDraft.trim()
+  async function runRewrite() {
+    const source = workingText.trim()
+    const instruction = voiceCommand.trim() || 'Rewrite this to be clearer, calmer, and ready to send.'
 
     if (source.length < 3) {
-      setError('Run the analysis first.')
+      setError('Add a draft first.')
       return
     }
 
-    setStatus('transforming')
+    checkpoint('Before rewrite')
+    setStatus('rewriting')
     setError(null)
-    pushHistorySnapshot(`Before ${action}`)
-
-    try {
-      const result = await postAssistant<TransformResponse>({
-        mode: 'action',
-        text: source,
-        audience,
-        goal,
-        action,
-        clientId,
-        analysisContext: analysis
-          ? {
-              verdict: analysis.verdict,
-              reasons: analysis.reasons,
-              inferredGoal: analysis.inferredGoal,
-            }
-          : undefined,
-      })
-
-      setCurrentDraft(result.updatedText)
-      setLastChangeNote(result.note)
-      draftOriginRef.current = 'system'
-      await analyzeCurrentDraft(result.updatedText)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Quick action failed.')
-    } finally {
-      setStatus('idle')
-    }
-  }
-
-  async function applyLocalEdit() {
-    const source = currentDraft.trim()
-
-    if (source.length < 3) {
-      setError('Run the analysis first.')
-      return
-    }
-
-    const instruction = (editInstructionRef.current?.value || '').trim()
-
-    if (!instruction) {
-      setError('Add an edit instruction.')
-      return
-    }
-
-    setStatus('transforming')
-    setError(null)
-    pushHistorySnapshot('Before local edit')
 
     try {
       const result = await postAssistant<TransformResponse>({
@@ -352,231 +293,339 @@ export default function Page() {
           : undefined,
       })
 
-      setCurrentDraft(result.updatedText)
+      setWorkingText(result.updatedText)
       setLastChangeNote(result.note)
-      draftOriginRef.current = 'system'
-      if (editInstructionRef.current) {
-        editInstructionRef.current.value = ''
-      }
+      setVoiceCommand('')
+      lastAnalyzedDraftRef.current = result.updatedText
       await analyzeCurrentDraft(result.updatedText)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Edit failed.')
-    } finally {
+      setError(err instanceof Error ? err.message : 'Rewrite failed.')
       setStatus('idle')
     }
   }
 
   function undoLastChange() {
-    const previous = history.at(-1)
+    const previous = past.at(-1)
 
     if (!previous) {
       return
     }
 
-    setHistory((existing) => existing.slice(0, -1))
-    setCurrentDraft(previous.draft)
+    setPast((existing) => existing.slice(0, -1))
+    setFuture((existing) => [...existing, currentSnapshot()].slice(-20))
+    setWorkingText(previous.draft)
     setAnalysis(previous.analysis)
     setLastChangeNote(previous.note)
     lastAnalyzedDraftRef.current = previous.draft
-    draftOriginRef.current = 'system'
   }
 
-  const editInstructionRef = useRef<HTMLTextAreaElement | null>(null)
+  function redoLastChange() {
+    const next = future.at(-1)
 
-  async function copyCurrentDraft() {
-    const text = currentDraft.trim()
-
-    if (!text) {
+    if (!next) {
       return
     }
 
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1200)
+    setFuture((existing) => existing.slice(0, -1))
+    setPast((existing) => [...existing, currentSnapshot()].slice(-20))
+    setWorkingText(next.draft)
+    setAnalysis(next.analysis)
+    setLastChangeNote(next.note)
+    lastAnalyzedDraftRef.current = next.draft
   }
+
+  async function copyWorkingText() {
+    const text = workingText.trim()
+
+    if (!text) {
+      setError('Nothing to copy.')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(workingText)
+      setCopied(true)
+      setLastChangeNote('Draft copied')
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Copy failed.')
+    }
+  }
+
+  async function pasteIntoDraft() {
+    if (status !== 'idle') {
+      return
+    }
+
+    try {
+      const text = await navigator.clipboard.readText()
+
+      if (!text.trim()) {
+        setError('Clipboard is empty.')
+        return
+      }
+
+      checkpoint('Before paste')
+      setWorkingText(text)
+      setLastChangeNote('Clipboard pasted')
+      lastAnalyzedDraftRef.current = text
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Paste failed.')
+    }
+  }
+
+  function getSpeechRecognition() {
+    const win = window as Window & {
+      SpeechRecognition?: new () => SpeechRecognitionController
+      webkitSpeechRecognition?: new () => SpeechRecognitionController
+    }
+
+    return win.SpeechRecognition ?? win.webkitSpeechRecognition ?? null
+  }
+
+  function appendTranscript(transcript: string) {
+    const cleaned = transcript.trim()
+    if (!cleaned) {
+      return
+    }
+
+    setVoiceCommand((previous) => {
+      const prefix = previous.trim()
+      return prefix ? `${prefix} ${cleaned}` : cleaned
+    })
+  }
+
+  async function toggleVoiceCommandMic() {
+    if (status === 'listening') {
+      recognitionRef.current?.stop()
+      return
+    }
+
+    if (!speechSupported) {
+      setError('Speech recognition is not available in this browser.')
+      return
+    }
+
+    const Recognition = getSpeechRecognition()
+    if (!Recognition) {
+      setError('Speech recognition is not available in this browser.')
+      return
+    }
+
+    if (!recognitionRef.current) {
+      const recognition = new Recognition()
+      recognition.lang = 'en-US'
+      recognition.continuous = false
+      recognition.interimResults = false
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results ?? [])
+          .map((result: any) => result?.[0]?.transcript || '')
+          .join(' ')
+        appendTranscript(transcript)
+        setLastChangeNote('Voice command captured')
+      }
+      recognition.onerror = (event: any) => {
+        setError(`Dictation failed${event?.error ? `: ${event.error}` : '.'}`)
+        setStatus('idle')
+      }
+      recognition.onend = () => {
+        setStatus((current) => (current === 'listening' ? 'idle' : current))
+      }
+      recognitionRef.current = recognition
+    }
+
+    setError(null)
+    setStatus('listening')
+
+    try {
+      recognitionRef.current.start()
+    } catch (err) {
+      setStatus('idle')
+      setError(err instanceof Error ? err.message : 'Could not start voice capture.')
+    }
+  }
+
+  const verdictLabel = analysis ? analysis.verdict : 'Waiting'
+  const riskLabel = analysis ? analysis.riskLevel : 'idle'
 
   return (
     <main className="page-shell">
-      <div className="ambient ambient-left" />
-      <div className="ambient ambient-right" />
-
-      <section className="hero-bar">
-        <div>
+      <header className="hero-bar">
+        <div className="hero-copy">
           <p className="eyebrow">SafeToSend</p>
-          <h1>Second opinion before you send.</h1>
+          <h1>Is it safe to send?</h1>
           <p className="subtle">
-            Paste the draft, get a verdict, tighten the wording, and ship the safer version.
+            Your second pair of eyes before sending.
           </p>
         </div>
-        <div className="status-pill">
+        <div className="status-pill" aria-live="polite">
           <span className={`status-dot ${status === 'idle' ? 'idle' : 'busy'}`} />
-          <span>{status === 'idle' ? lastChangeNote : 'Working with the model'}</span>
+          <span>{statusText}</span>
         </div>
-      </section>
+      </header>
 
-      <section className="grid">
-        <div className="panel input-panel">
-          <div className="panel-head">
-            <div>
-              <p className="panel-kicker">Draft</p>
-              <h2>What are you about to send?</h2>
-            </div>
-            <div className="panel-hint">Model-first, no heuristics</div>
+      <section className="panel composer-card">
+        <div className="panel-head">
+          <div>
+            <p className="panel-kicker">Composer</p>
+            <h2>The message lives here.</h2>
           </div>
+          <div className={`analysis-badge ${draftIsStale ? 'stale' : 'fresh'}`}>
+            {analysis ? verdictLabel : 'Ready'}
+          </div>
+        </div>
 
-          <label className="field">
-            <span>Message draft</span>
+        <section className="analysis-card" aria-live="polite">
+          <div className="analysis-topline">
+            <span className={`verdict-pill ${verdictTone}`}>{verdictLabel}</span>
+            <span className={`risk-chip ${riskLabel}`}>{riskLabel}</span>
+          </div>
+          <p className="analysis-meta">
+            {analysis
+              ? `Likely intent: ${analysis.inferredGoal} · Confidence ${Math.round(analysis.confidence * 100)}%`
+              : 'Results appear here after you check or rewrite the message.'}
+          </p>
+          {analysis ? (
+            <div className="analysis-reasons">
+              <p className="analysis-reasons-label">Reasons</p>
+              <ul className="reason-list">
+                {analysis.reasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
+
+        <div className="editor-shell">
+          <label className="field editor-field">
+            <span>Working text</span>
             <textarea
               className="text-input draft-input"
-              value={inputText}
-              onChange={(event) => setInputText(event.target.value)}
-              placeholder="Why did you do it like this?"
+              value={workingText}
+              onChange={(event) => {
+                setWorkingText(event.target.value)
+                setError(null)
+              }}
+              placeholder="Paste, type, or rewrite the message here."
+              />
+          </label>
+
+          <div className="history-rail" aria-label="Draft controls">
+            <button
+              className="ghost-button rail-button"
+              onClick={undoLastChange}
+              disabled={!past.length || status !== 'idle'}
+              type="button"
+            >
+              Undo
+            </button>
+            <button
+              className="ghost-button rail-button"
+              onClick={redoLastChange}
+              disabled={!future.length || status !== 'idle'}
+              type="button"
+            >
+              Redo
+            </button>
+            <button
+              className="ghost-button rail-button"
+              onClick={() => void copyWorkingText()}
+              disabled={status !== 'idle' || !workingText.trim()}
+              type="button"
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+            <button
+              className="ghost-button rail-button"
+              onClick={() => void pasteIntoDraft()}
+              disabled={status !== 'idle'}
+              type="button"
+            >
+              Paste
+            </button>
+          </div>
+        </div>
+
+        <div className="control-grid">
+          <label className="field">
+            <span>Audience</span>
+            <select
+              className="control"
+              value={audience}
+              onChange={(event) => setAudience(event.target.value as Audience)}
+            >
+              {audienceOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label} - {option.helper}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Goal</span>
+            <input
+              className="control"
+              value={goal}
+              onChange={(event) => setGoal(event.target.value)}
+              placeholder="Ask for clarification"
+            />
+          </label>
+        </div>
+
+        <div className="button-grid">
+          <button
+            className="primary-button"
+            onClick={() => void runCheck()}
+            disabled={status !== 'idle' || workingText.trim().length < 3}
+            type="button"
+          >
+            {status === 'analyzing' ? 'Checking...' : 'Check'}
+          </button>
+          <button
+            className="secondary-button"
+            onClick={() => void runRewrite()}
+            disabled={status !== 'idle' || !workingText.trim()}
+            type="button"
+          >
+            {status === 'rewriting' ? 'Rewriting...' : 'Rewrite'}
+          </button>
+        </div>
+
+        <div className="voice-row">
+          <label className="field grow">
+            <span>Voice commands</span>
+            <input
+              className="control"
+              value={voiceCommand}
+              onChange={(event) => setVoiceCommand(event.target.value)}
+              placeholder="make it shorter and less blunt"
             />
           </label>
 
-          <div className="row">
-            <label className="field grow">
-              <span>Audience</span>
-              <select
-                className="control"
-                value={audience}
-                onChange={(event) => setAudience(event.target.value as Audience)}
-              >
-                {audienceOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label} - {option.helper}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field grow">
-              <span>Goal</span>
-              <input
-                className="control"
-                value={goal}
-                onChange={(event) => setGoal(event.target.value)}
-                placeholder="Ask for clarification"
-              />
-            </label>
-          </div>
-
           <button
-            className="primary-button"
-            onClick={runMainAnalysis}
-            disabled={status !== 'idle' || inputText.trim().length < 3}
+            className="secondary-button edit-button"
+            onClick={() => void runRewrite()}
+            disabled={status !== 'idle' || !workingText.trim()}
             type="button"
           >
-            {status === 'analyzing' ? 'Checking...' : 'Check before sending'}
+            {status === 'rewriting' ? 'Editing...' : 'Edit'}
           </button>
 
-          {error ? <div className="error-banner">{error}</div> : null}
+          <button
+            className="ghost-button mic-button"
+            onClick={() => void toggleVoiceCommandMic()}
+            disabled={(status !== 'idle' && status !== 'listening') || (!speechSupported && status !== 'listening')}
+            type="button"
+          >
+            {status === 'listening' ? 'Stop mic' : 'Mic'}
+          </button>
         </div>
 
-        <div className="panel result-panel">
-          <div className="panel-head">
-            <div>
-              <p className="panel-kicker">Assistant</p>
-              <h2>Risk, rewrite, and local edits</h2>
-            </div>
-            {analysis ? (
-              <div className={`verdict-badge ${verdictTone}`}>{analysis.verdict}</div>
-            ) : (
-              <div className="verdict-badge neutral">Waiting</div>
-            )}
-          </div>
+        {error ? <div className="error-banner">{error}</div> : null}
 
-          {!analysis ? (
-            <div className="empty-state">
-              <p className="empty-title">Paste a draft and get a second opinion before you send it.</p>
-              <p className="empty-copy">
-                The assistant will return a verdict, concise reasons, and a safer rewrite.
-              </p>
-            </div>
-          ) : (
-            <div className="stack">
-              <div className="analysis-card">
-                <div className="analysis-topline">
-                  <span className={`risk-chip ${analysis.riskLevel}`}>{analysis.riskLevel}</span>
-                  <span>{verdictDescription(analysis.verdict)}</span>
-                </div>
-                <p className="analysis-meta">
-                  Likely intent: {analysis.inferredGoal} · Confidence {Math.round(analysis.confidence * 100)}%
-                </p>
-                <ul className="reason-list">
-                  {analysis.reasons.map((reason) => (
-                    <li key={reason}>{reason}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <label className="field">
-                <span>Suggested message</span>
-                <textarea
-                  className="text-input suggestion-input"
-                  value={currentDraft}
-                  onChange={(event) => {
-                    draftOriginRef.current = 'manual'
-                    setCurrentDraft(event.target.value)
-                  }}
-                  placeholder="Your safer version appears here."
-                />
-              </label>
-
-              <div className="quick-actions">
-                {quickActions.map((action) => (
-                  <button
-                    key={action}
-                    className="secondary-button"
-                    onClick={() => void applyQuickAction(action)}
-                    disabled={status !== 'idle' || !currentDraft.trim()}
-                    type="button"
-                  >
-                    {action}
-                  </button>
-                ))}
-              </div>
-
-              <div className="edit-block">
-                <label className="field">
-                  <span>Local edit instruction</span>
-                  <textarea
-                    ref={editInstructionRef}
-                    className="text-input edit-input"
-                    placeholder='replace "review" with "look over"'
-                  />
-                </label>
-
-                <div className="row action-row">
-                  <button
-                    className="secondary-button"
-                    onClick={() => void applyLocalEdit()}
-                    disabled={status !== 'idle' || !currentDraft.trim()}
-                    type="button"
-                  >
-                    {status === 'transforming' ? 'Applying...' : 'Apply edit'}
-                  </button>
-                  <button
-                    className="ghost-button"
-                    onClick={undoLastChange}
-                    disabled={!history.length || status !== 'idle'}
-                    type="button"
-                  >
-                    Undo
-                  </button>
-                  <button
-                    className="ghost-button"
-                    onClick={() => void copyCurrentDraft()}
-                    disabled={!currentDraft.trim()}
-                    type="button"
-                  >
-                    {copied ? 'Copied' : 'Copy'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
       </section>
     </main>
   )
