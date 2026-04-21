@@ -626,9 +626,6 @@ export default function Page() {
 
         {error ? <div className="error-banner">{error}</div> : null}
 
-        <p className="micro-copy">
-          One field stays active. Voice commands are just test input for rewrite instructions.
-        </p>
       </section>
     </main>
   )
