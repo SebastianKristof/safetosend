@@ -611,13 +611,13 @@ export default function Page() {
             disabled={status !== 'idle' || !workingText.trim()}
             type="button"
           >
-            {status === 'rewriting' ? 'Editing...' : 'Edit'}
+            {status === 'rewriting' ? 'Submitting...' : 'Submit'}
           </button>
 
           <button
             className="ghost-button mic-button"
             onClick={() => void toggleVoiceCommandMic()}
-            disabled={(status !== 'idle' && status !== 'listening') || (!speechSupported && status !== 'listening')}
+            disabled
             type="button"
           >
             {status === 'listening' ? 'Stop mic' : 'Mic'}
