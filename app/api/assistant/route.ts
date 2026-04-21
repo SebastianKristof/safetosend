@@ -1,18 +1,18 @@
-import { generateText, gateway, Output } from 'ai'
+import { generateText, Output } from 'ai'
 import { NextResponse } from 'next/server'
 import {
   analysisResponseSchema,
   assistantRequestSchema,
   transformResponseSchema,
 } from '@/lib/assistant-contracts'
+import { getInferenceConfig, resolveInferenceModel } from '@/lib/inference-config'
 import {
   buildAnalysisPrompt,
   buildEditPrompt,
   buildQuickActionPrompt,
   getPromptBundle,
 } from '@/lib/assistant-prompts'
-
-const DEFAULT_MODEL = process.env.SAFETOSEND_MODEL || 'openai/gpt-5.4'
+import type { InferenceProvider } from '@/lib/inference-config'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
@@ -29,17 +29,24 @@ export async function POST(request: Request) {
   }
 
   const payload = parsed.data
-  const model = gateway(DEFAULT_MODEL)
+  const inferenceConfig = getInferenceConfig()
   const prompts = await getPromptBundle()
-  const gatewayOptions = {
-    gateway: {
-      user: payload.clientId || 'anonymous',
-      tags: ['app:safetosend', `mode:${payload.mode}`, `audience:${payload.audience}`],
-    },
-  }
+
+  const buildProviderOptions = (provider: InferenceProvider) =>
+    provider === 'vercel'
+      ? {
+          gateway: {
+            user: payload.clientId || 'anonymous',
+            tags: ['app:safetosend', `mode:${payload.mode}`, `audience:${payload.audience}`],
+          },
+        }
+      : undefined
 
   try {
     if (payload.mode === 'analyze') {
+      const slot = inferenceConfig.textAnalysis
+      const model = resolveInferenceModel(slot)
+
       const result = await generateText({
         model,
         system: prompts.analyzeSystem,
@@ -49,7 +56,7 @@ export async function POST(request: Request) {
         }),
         temperature: 0.2,
         maxOutputTokens: 450,
-        providerOptions: gatewayOptions,
+        providerOptions: buildProviderOptions(slot.provider),
       })
 
       return NextResponse.json(result.output)
@@ -60,6 +67,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Missing quick action.' }, { status: 400 })
       }
 
+      const slot = inferenceConfig.textGeneration
+      const model = resolveInferenceModel(slot)
+
       const result = await generateText({
         model,
         system: prompts.transformSystem,
@@ -69,7 +79,7 @@ export async function POST(request: Request) {
         }),
         temperature: 0.45,
         maxOutputTokens: 320,
-        providerOptions: gatewayOptions,
+        providerOptions: buildProviderOptions(slot.provider),
       })
 
       return NextResponse.json(result.output)
@@ -78,6 +88,9 @@ export async function POST(request: Request) {
     if (!payload.instruction?.trim()) {
       return NextResponse.json({ error: 'Missing edit instruction.' }, { status: 400 })
     }
+
+    const slot = inferenceConfig.textGeneration
+    const model = resolveInferenceModel(slot)
 
     const result = await generateText({
       model,
@@ -88,7 +101,7 @@ export async function POST(request: Request) {
       }),
       temperature: 0.35,
       maxOutputTokens: 320,
-      providerOptions: gatewayOptions,
+      providerOptions: buildProviderOptions(slot.provider),
     })
 
     return NextResponse.json(result.output)
