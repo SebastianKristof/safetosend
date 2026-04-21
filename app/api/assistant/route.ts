@@ -8,9 +8,7 @@ import {
 import { getInferenceConfig, resolveInferenceModel } from '@/lib/inference-config'
 import {
   buildAnalysisPrompt,
-  buildGeneratePrompt,
   buildEditPrompt,
-  buildQuickActionPrompt,
   getPromptBundle,
 } from '@/lib/assistant-prompts'
 import type { InferenceProvider } from '@/lib/inference-config'
@@ -61,52 +59,6 @@ export async function POST(request: Request) {
         }),
         temperature: 0.2,
         maxOutputTokens: 450,
-        providerOptions: buildProviderOptions(slot.provider),
-      })
-
-      return NextResponse.json(result.output)
-    }
-
-    if (payload.mode === 'generate') {
-      const slot = inferenceConfig.textGeneration
-      const model = resolveInferenceModel(slot)
-
-      const result = await generateText({
-        model,
-        system: prompts.transformSystem,
-        prompt: buildGeneratePrompt(payload, prompts.generateUser),
-        output: Output.object({
-          schema: transformResponseSchema,
-        }),
-        temperature: 0.55,
-        maxOutputTokens: 320,
-        providerOptions: buildProviderOptions(slot.provider),
-      })
-
-      return NextResponse.json(result.output)
-    }
-
-    if (payload.mode === 'action') {
-      if (payload.text.trim().length < 3) {
-        return NextResponse.json({ error: 'Missing draft text.' }, { status: 400 })
-      }
-
-      if (!payload.action) {
-        return NextResponse.json({ error: 'Missing quick action.' }, { status: 400 })
-      }
-
-      const slot = inferenceConfig.textGeneration
-      const model = resolveInferenceModel(slot)
-
-      const result = await generateText({
-        model,
-        system: prompts.transformSystem,
-        prompt: buildQuickActionPrompt(payload, payload.action, prompts.quickActionUser),
-        output: Output.object({
-          schema: transformResponseSchema,
-        }),
-        temperature: 0.45,
-        maxOutputTokens: 320,
         providerOptions: buildProviderOptions(slot.provider),
       })
 

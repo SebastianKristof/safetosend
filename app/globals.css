@@ -190,6 +190,26 @@ h2 {
   gap: 12px;
 }
 
+.editor-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.editor-field {
+  min-width: 0;
+}
+
+.history-rail {
+  display: grid;
+  gap: 8px;
+}
+
+.rail-button {
+  min-width: 4.75rem;
+}
+
 .control,
 .text-input {
   width: 100%;
@@ -222,7 +242,7 @@ h2 {
 }
 
 .draft-input {
-  min-height: clamp(11rem, 32svh, 18rem);
+  min-height: clamp(9rem, 24svh, 14rem);
 }
 
 .edit-input {
@@ -231,7 +251,7 @@ h2 {
 
 .button-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -310,6 +330,17 @@ h2 {
   color: var(--muted);
   font-size: 0.86rem;
   line-height: 1.45;
+}
+
+.voice-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.mic-button {
+  min-width: 4.5rem;
 }
 
 .analysis-card {
@@ -467,12 +498,24 @@ h2 {
     justify-content: center;
   }
 
+  .editor-shell {
+    gap: 8px;
+  }
+
+  .history-rail {
+    align-self: stretch;
+  }
+
+  .rail-button {
+    min-width: 4rem;
+  }
+
   .control-grid {
     grid-template-columns: 1fr;
   }
 
   .button-grid {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 
   .panel {
@@ -480,6 +523,6 @@ h2 {
   }
 
   .draft-input {
-    min-height: clamp(10rem, 28svh, 14rem);
+    min-height: clamp(9rem, 23svh, 12rem);
   }
 }
