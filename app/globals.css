@@ -1,21 +1,21 @@
 :root {
   --bg: #f7f8fb;
   --surface: #ffffff;
-  --surface-muted: #f3f5f8;
+  --surface-muted: #f6f4ef;
   --surface-raised: #ffffff;
-  --line: #e5e8ee;
-  --line-strong: #d8dee7;
-  --text: #171b24;
-  --muted: #707887;
-  --soft: #8d96a5;
-  --accent: #467cff;
-  --accent-strong: #2f6df3;
-  --accent-soft: #edf3ff;
+  --line: #e5e2da;
+  --line-strong: #d8d2c7;
+  --text: #23201c;
+  --muted: #746d63;
+  --soft: #978f84;
+  --accent: #6d8db8;
+  --accent-strong: #5678a6;
+  --accent-soft: #eef4fb;
   --good: #49c46a;
   --warn: #e7b23c;
   --danger: #ef6a6a;
-  --shadow: 0 10px 28px rgba(23, 27, 36, 0.08);
-  --shadow-soft: 0 6px 18px rgba(23, 27, 36, 0.06);
+  --shadow: 0 10px 28px rgba(53, 45, 35, 0.07);
+  --shadow-soft: 0 6px 18px rgba(53, 45, 35, 0.05);
   --editor-font-size: 15px;
   --editor-line-height: 22px;
   --editor-pad-y: 10px;
@@ -181,16 +181,16 @@ h2 {
   min-height: clamp(9rem, 24svh, 14rem);
   border: 1px solid var(--line-strong);
   border-radius: 12px;
-  background: var(--surface-muted);
+  background: linear-gradient(180deg, #fcfbf8 0%, var(--surface-muted) 100%);
   overflow: hidden;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
 }
 
 .editor-surface:focus-within {
-  border-color: rgba(70, 124, 255, 0.42);
+  border-color: rgba(109, 141, 184, 0.38);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.75),
-    0 0 0 3px rgba(70, 124, 255, 0.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 0 0 3px rgba(109, 141, 184, 0.1);
 }
 
 .editor-backdrop {
@@ -220,7 +220,7 @@ h2 {
   width: 100%;
   border: 1px solid var(--line-strong);
   border-radius: 10px;
-  background: var(--surface);
+  background: #fcfbf8;
   color: var(--text);
   outline: none;
   transition:
@@ -231,8 +231,8 @@ h2 {
 
 .control:focus,
 .text-input:focus {
-  border-color: rgba(70, 124, 255, 0.42);
-  box-shadow: 0 0 0 3px rgba(70, 124, 255, 0.1);
+  border-color: rgba(109, 141, 184, 0.38);
+  box-shadow: 0 0 0 3px rgba(109, 141, 184, 0.1);
 }
 
 .control {
@@ -291,7 +291,7 @@ h2 {
 
 .editor-placeholder {
   margin: 0;
-  color: var(--soft);
+  color: #aaa193;
   line-height: 1.5;
 }
 
@@ -536,15 +536,15 @@ h2 {
 }
 
 .highlight-mark.yellow {
-  background: #ffefba;
+  background: #f6ecbf;
 }
 
 .highlight-mark.red {
-  background: #ffd6db;
+  background: #f5d9db;
 }
 
 .highlight-mark.green {
-  background: #dff7e5;
+  background: #dff0e3;
 }
 
 .change-list {
