@@ -29,6 +29,8 @@ const UI_COPY = {
       confidence: 'Confidence',
       reasons: 'Reasons',
       changes: 'What changed',
+      history: 'Recent history',
+      current: 'Current',
     },
     fields: {
       interfaceLanguage: 'Interface language',
@@ -140,6 +142,8 @@ const UI_COPY = {
       confidence: 'Уверенность',
       reasons: 'Причины',
       changes: 'Что изменилось',
+      history: 'Последние версии',
+      current: 'Текущая',
     },
     fields: {
       interfaceLanguage: 'Язык интерфейса',
@@ -251,6 +255,8 @@ const UI_COPY = {
       confidence: 'Confianza',
       reasons: 'Motivos',
       changes: 'Que cambio',
+      history: 'Historial reciente',
+      current: 'Actual',
     },
     fields: {
       interfaceLanguage: 'Idioma de la interfaz',
@@ -362,6 +368,8 @@ const UI_COPY = {
       confidence: 'Sicherheit',
       reasons: 'Gruende',
       changes: 'Was sich geaendert hat',
+      history: 'Letzte Versionen',
+      current: 'Aktuell',
     },
     fields: {
       interfaceLanguage: 'Sprache der Oberflaeche',
@@ -473,6 +481,8 @@ const UI_COPY = {
       confidence: 'Confiance',
       reasons: 'Raisons',
       changes: 'Ce qui a change',
+      history: 'Historique recent',
+      current: 'Actuel',
     },
     fields: {
       interfaceLanguage: 'Langue de l interface',
@@ -1013,8 +1023,17 @@ export default function Page() {
     }
   }
 
+  const recentHistory = [...past, currentSnapshot()]
+    .slice(-3)
+    .reverse()
+    .map((snapshot, index) => ({
+      ...snapshot,
+      isCurrent: index === 0,
+      preview: snapshot.draft.trim() || copy.status.startDraft,
+    }))
+
   function checkpoint(note: string) {
-    setPast((existing) => [...existing, currentSnapshot(note)].slice(-20))
+    setPast((existing) => [...existing, currentSnapshot(note)])
     setFuture([])
   }
 
@@ -1121,7 +1140,7 @@ export default function Page() {
     }
 
     setPast((existing) => existing.slice(0, -1))
-    setFuture((existing) => [...existing, currentSnapshot()].slice(-20))
+    setFuture((existing) => [...existing, currentSnapshot()])
     setWorkingText(previous.draft)
     setAnalysis(previous.analysis)
     setLastChangeNote(previous.note)
@@ -1138,7 +1157,7 @@ export default function Page() {
     }
 
     setFuture((existing) => existing.slice(0, -1))
-    setPast((existing) => [...existing, currentSnapshot()].slice(-20))
+    setPast((existing) => [...existing, currentSnapshot()])
     setWorkingText(next.draft)
     setAnalysis(next.analysis)
     setLastChangeNote(next.note)
@@ -1478,31 +1497,50 @@ export default function Page() {
 
         {error ? <div className="error-banner">{error}</div> : null}
 
-        {lastChanges.length ? (
+        {past.length || lastChanges.length || future.length ? (
           <section className="analysis-card version-card" aria-live="polite">
             <div className="analysis-topline">
               <span className="verdict-pill neutral">
-                {copy.changes.title} · v{version}
+                {copy.changes.title}
               </span>
             </div>
-            <ul className="change-list">
-              {lastChanges.map((change, index) => (
-                <li key={`${change.summary}-${index}`} className="change-item">
-                  <p className="change-summary">{change.summary}</p>
-                  <div className="change-span-row">
-                    <span className="change-chip change-from">
-                      <span className="change-chip-label">{copy.changes.from}</span>
-                      <span>{change.before || '—'}</span>
+            <div className="history-list">
+              {recentHistory.map((entry) => (
+                <article
+                  key={`${entry.version}-${entry.note}-${entry.preview}`}
+                  className={`history-entry ${entry.isCurrent ? 'current' : ''}`}
+                >
+                  <div className="history-entry-topline">
+                    <span className="history-entry-version">
+                      v{entry.version} {entry.isCurrent ? `· ${copy.panel.current}` : ''}
                     </span>
-                    <span className="change-arrow">→</span>
-                    <span className="change-chip change-to">
-                      <span className="change-chip-label">{copy.changes.to}</span>
-                      <span>{change.after || '—'}</span>
-                    </span>
+                    <span className="history-entry-note">{entry.note || copy.panel.ready}</span>
                   </div>
-                </li>
+                  {entry.changes.length ? (
+                    <ul className="change-list">
+                      {entry.changes.map((change, index) => (
+                        <li key={`${entry.version}-${change.summary}-${index}`} className="change-item">
+                          <p className="change-summary">{change.summary}</p>
+                          <div className="change-span-row">
+                            <span className="change-chip change-from">
+                              <span className="change-chip-label">{copy.changes.from}</span>
+                              <span>{change.before || '—'}</span>
+                            </span>
+                            <span className="change-arrow">→</span>
+                            <span className="change-chip change-to">
+                              <span className="change-chip-label">{copy.changes.to}</span>
+                              <span>{change.after || '—'}</span>
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="history-entry-preview">{entry.preview}</p>
+                  )}
+                </article>
               ))}
-            </ul>
+            </div>
           </section>
         ) : null}
 
