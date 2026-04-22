@@ -818,6 +818,28 @@ function HighlightedText({
   )
 }
 
+function RewriteIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <path
+        d="M7 7h9l-2.5-2.5L15 3l5 5-5 5-1.5-1.5L16 9H7a3 3 0 0 0 0 6h2v2H7a5 5 0 0 1 0-10Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function MicIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <path
+        d="M12 15a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm-5-3H5a7 7 0 0 0 6 6.92V22h2v-3.08A7 7 0 0 0 19 12h-2a5 5 0 1 1-10 0Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
 async function postAssistant<T>(body: Record<string, unknown>, fallbackError: string) {
   const response = await fetch('/api/assistant', {
     method: 'POST',
@@ -1393,11 +1415,12 @@ export default function Page() {
 
           <label className="field">
             <span>{copy.fields.goal}</span>
-            <input
-              className="control"
+            <textarea
+              className="control compact-textarea"
               value={goal}
               onChange={(event) => setGoal(event.target.value)}
               placeholder={copy.placeholders.goal}
+              rows={2}
             />
           </label>
         </div>
@@ -1424,31 +1447,38 @@ export default function Page() {
         <div className="voice-row">
           <label className="field grow">
             <span>{copy.fields.voice}</span>
-            <input
-              className="control"
+            <textarea
+              className="control compact-textarea"
               value={voiceCommand}
               onChange={(event) => setVoiceCommand(event.target.value)}
               placeholder={copy.placeholders.voice}
+              rows={2}
             />
           </label>
 
-          <button
-            className="secondary-button edit-button"
-            onClick={() => void runRewrite()}
-            disabled={status !== 'idle' || !workingText.trim()}
-            type="button"
-          >
-            {status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
-          </button>
+          <div className="voice-actions">
+            <button
+              className="secondary-button icon-button edit-button"
+              onClick={() => void runRewrite()}
+              disabled={status !== 'idle' || !workingText.trim()}
+              type="button"
+              title={status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
+              aria-label={status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
+            >
+              <RewriteIcon />
+            </button>
 
-          <button
-            className="ghost-button mic-button"
-            onClick={() => void toggleVoiceCommandMic()}
-            disabled
-            type="button"
-          >
-            {status === 'listening' ? copy.buttons.stopMic : copy.buttons.mic}
-          </button>
+            <button
+              className="ghost-button icon-button mic-button"
+              onClick={() => void toggleVoiceCommandMic()}
+              disabled
+              type="button"
+              title={status === 'listening' ? copy.buttons.stopMic : copy.buttons.mic}
+              aria-label={status === 'listening' ? copy.buttons.stopMic : copy.buttons.mic}
+            >
+              <MicIcon />
+            </button>
+          </div>
         </div>
 
         {error ? <div className="error-banner">{error}</div> : null}
