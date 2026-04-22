@@ -42,6 +42,21 @@ export async function POST(request: Request) {
       missingInstruction: 'Не хватает инструкции для правки.',
       requestFailed: 'Запрос к ИИ не удался.',
     },
+    es: {
+      missingDraft: 'Falta el texto del borrador.',
+      missingInstruction: 'Falta la instruccion de edicion.',
+      requestFailed: 'La solicitud a la IA fallo.',
+    },
+    de: {
+      missingDraft: 'Entwurfstext fehlt.',
+      missingInstruction: 'Bearbeitungsanweisung fehlt.',
+      requestFailed: 'Die KI-Anfrage ist fehlgeschlagen.',
+    },
+    fr: {
+      missingDraft: 'Le texte du brouillon manque.',
+      missingInstruction: "L'instruction de modification manque.",
+      requestFailed: "La requete a l'IA a echoue.",
+    },
   }[locale]
 
   const buildProviderOptions = (provider: InferenceProvider) =>

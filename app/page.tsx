@@ -107,8 +107,11 @@ const UI_COPY = {
       to: 'To',
     },
     locales: {
-      en: 'EN',
-      ru: 'RU',
+      en: 'English',
+      ru: 'Russian',
+      es: 'Spanish',
+      de: 'German',
+      fr: 'French',
     },
     errors: {
       pasteFirst: 'Paste a draft first.',
@@ -215,8 +218,11 @@ const UI_COPY = {
       to: 'Стало',
     },
     locales: {
-      en: 'EN',
-      ru: 'RU',
+      en: 'Английский',
+      ru: 'Русский',
+      es: 'Испанский',
+      de: 'Немецкий',
+      fr: 'Французский',
     },
     errors: {
       pasteFirst: 'Сначала вставьте черновик.',
@@ -228,6 +234,339 @@ const UI_COPY = {
       dictationUnsupported: 'Распознавание речи недоступно в этом браузере.',
       dictationFailed: 'Не удалось распознать речь',
       couldNotStart: 'Не удалось запустить запись голоса.',
+    },
+  },
+  es: {
+    hero: {
+      eyebrow: 'SafeToSend',
+      title: 'Es seguro enviarlo?',
+      subtitle: 'Tu segunda mirada antes de enviar.',
+    },
+    panel: {
+      kicker: 'Borrador',
+      title: 'Aqui vive el mensaje.',
+      ready: 'Listo',
+      resultsPlaceholder: 'Los resultados aparecen aqui despues de revisar o reescribir el mensaje.',
+      likelyIntent: 'Intencion probable',
+      confidence: 'Confianza',
+      reasons: 'Motivos',
+      changes: 'Que cambio',
+    },
+    fields: {
+      interfaceLanguage: 'Idioma de la interfaz',
+      workingText: 'Texto',
+      audience: 'Destinatario',
+      goal: 'Objetivo',
+      voice: 'Comandos de voz',
+    },
+    placeholders: {
+      workingText: 'Pega, escribe o reescribe el mensaje aqui.',
+      goal: 'Pedir una aclaracion',
+      voice: 'hazlo mas corto y menos brusco',
+    },
+    buttons: {
+      undo: 'Deshacer',
+      redo: 'Rehacer',
+      copy: 'Copiar',
+      copied: 'Copiado',
+      paste: 'Pegar',
+      check: 'Revisar',
+      checking: 'Revisando...',
+      submit: 'Reescribir',
+      submitting: 'Reescribiendo...',
+      mic: 'Microfono',
+      stopMic: 'Detener',
+    },
+    status: {
+      idle: 'Listo',
+      analyzing: 'Revisando',
+      rewriting: 'Reescribiendo',
+      listening: 'Escuchando',
+      draftChanged: 'El borrador cambio',
+      startDraft: 'Pega, escribe o dicta un borrador.',
+      beforeCheck: 'Antes de revisar',
+      beforePaste: 'Antes de pegar',
+      beforeRewrite: 'Antes de reescribir',
+      clipboardPasted: 'Texto pegado',
+      voiceCommandCaptured: 'Comando de voz capturado',
+      draftCopied: 'Texto copiado',
+      analysisUpdated: 'Analisis actualizado',
+      requestFailed: 'La solicitud a la IA fallo.',
+      analysisFailed: 'No se pudo revisar el texto.',
+      rewriteFailed: 'No se pudo reescribir el texto.',
+    },
+    verdicts: {
+      ok: 'Se puede enviar',
+      risky: 'Conviene revisarlo',
+      hold: 'Todavia no lo envies',
+    },
+    risks: {
+      low: 'bajo',
+      medium: 'medio',
+      high: 'alto',
+    },
+    audiences: {
+      boss: { label: 'Jefe', helper: 'Breve, claro, sin friccion' },
+      client: { label: 'Cliente', helper: 'Pulido, cuidadoso, seguro' },
+      colleague: { label: 'Colega', helper: 'Directo y colaborativo' },
+      partner: { label: 'Pareja', helper: 'Calido y sin defensiva' },
+      other: { label: 'Otro', helper: 'Neutral y adaptable' },
+    },
+    analysis: {
+      likelyIntent: 'Intencion probable',
+      confidence: 'Confianza',
+      resultsPlaceholder: 'Los resultados aparecen aqui despues de revisar o reescribir el mensaje.',
+      analysisHighlights: 'Partes cuestionables',
+      rewriteHighlights: 'Partes reescritas',
+    },
+    changes: {
+      title: 'Que cambio',
+      summary: 'Cambio',
+      added: 'Agregado',
+      removed: 'Eliminado',
+      replaced: 'Reemplazado',
+      from: 'Antes',
+      to: 'Despues',
+    },
+    locales: {
+      en: 'Ingles',
+      ru: 'Ruso',
+      es: 'Espanol',
+      de: 'Aleman',
+      fr: 'Frances',
+    },
+    errors: {
+      pasteFirst: 'Primero pega un borrador.',
+      addDraft: 'Primero agrega un borrador.',
+      nothingToCopy: 'No hay nada para copiar.',
+      clipboardEmpty: 'El portapapeles esta vacio.',
+      copyFailed: 'No se pudo copiar el texto.',
+      pasteFailed: 'No se pudo pegar el texto.',
+      dictationUnsupported: 'El reconocimiento de voz no esta disponible en este navegador.',
+      dictationFailed: 'El dictado fallo',
+      couldNotStart: 'No se pudo iniciar la captura de voz.',
+    },
+  },
+  de: {
+    hero: {
+      eyebrow: 'SafeToSend',
+      title: 'Ist das sicher zu senden?',
+      subtitle: 'Dein zweites Paar Augen vor dem Senden.',
+    },
+    panel: {
+      kicker: 'Entwurf',
+      title: 'Hier lebt die Nachricht.',
+      ready: 'Bereit',
+      resultsPlaceholder: 'Die Ergebnisse erscheinen hier nach der Pruefung oder Ueberarbeitung der Nachricht.',
+      likelyIntent: 'Wahrscheinliche Absicht',
+      confidence: 'Sicherheit',
+      reasons: 'Gruende',
+      changes: 'Was sich geaendert hat',
+    },
+    fields: {
+      interfaceLanguage: 'Sprache der Oberflaeche',
+      workingText: 'Text',
+      audience: 'Empfaenger',
+      goal: 'Ziel',
+      voice: 'Sprachbefehle',
+    },
+    placeholders: {
+      workingText: 'Fuege die Nachricht hier ein, tippe sie ein oder ueberarbeite sie.',
+      goal: 'Um Klarstellung bitten',
+      voice: 'mach es kuerzer und weniger schroff',
+    },
+    buttons: {
+      undo: 'Rueckgaengig',
+      redo: 'Wiederholen',
+      copy: 'Kopieren',
+      copied: 'Kopiert',
+      paste: 'Einfuegen',
+      check: 'Pruefen',
+      checking: 'Wird geprueft...',
+      submit: 'Ueberarbeiten',
+      submitting: 'Wird ueberarbeitet...',
+      mic: 'Mikrofon',
+      stopMic: 'Stopp',
+    },
+    status: {
+      idle: 'Bereit',
+      analyzing: 'Prueft',
+      rewriting: 'Ueberarbeitet',
+      listening: 'Hoert zu',
+      draftChanged: 'Entwurf geaendert',
+      startDraft: 'Fuege einen Entwurf ein, schreibe oder diktiere ihn.',
+      beforeCheck: 'Vor der Pruefung',
+      beforePaste: 'Vor dem Einfuegen',
+      beforeRewrite: 'Vor der Ueberarbeitung',
+      clipboardPasted: 'Text eingefuegt',
+      voiceCommandCaptured: 'Sprachbefehl erfasst',
+      draftCopied: 'Text kopiert',
+      analysisUpdated: 'Analyse aktualisiert',
+      requestFailed: 'Die KI-Anfrage ist fehlgeschlagen.',
+      analysisFailed: 'Der Text konnte nicht geprueft werden.',
+      rewriteFailed: 'Der Text konnte nicht ueberarbeitet werden.',
+    },
+    verdicts: {
+      ok: 'Kann gesendet werden',
+      risky: 'Sollte ueberarbeitet werden',
+      hold: 'Noch nicht senden',
+    },
+    risks: {
+      low: 'niedrig',
+      medium: 'mittel',
+      high: 'hoch',
+    },
+    audiences: {
+      boss: { label: 'Chef', helper: 'Kurz, klar, reibungsarm' },
+      client: { label: 'Kunde', helper: 'Sauber, vorsichtig, selbstsicher' },
+      colleague: { label: 'Kollege', helper: 'Direkt und kooperativ' },
+      partner: { label: 'Partner', helper: 'Warm und nicht defensiv' },
+      other: { label: 'Andere', helper: 'Neutral und anpassungsfaehig' },
+    },
+    analysis: {
+      likelyIntent: 'Wahrscheinliche Absicht',
+      confidence: 'Sicherheit',
+      resultsPlaceholder: 'Die Ergebnisse erscheinen hier nach der Pruefung oder Ueberarbeitung der Nachricht.',
+      analysisHighlights: 'Fragliche Stellen',
+      rewriteHighlights: 'Ueberarbeitete Stellen',
+    },
+    changes: {
+      title: 'Was sich geaendert hat',
+      summary: 'Aenderung',
+      added: 'Hinzugefuegt',
+      removed: 'Entfernt',
+      replaced: 'Ersetzt',
+      from: 'Vorher',
+      to: 'Nachher',
+    },
+    locales: {
+      en: 'Englisch',
+      ru: 'Russisch',
+      es: 'Spanisch',
+      de: 'Deutsch',
+      fr: 'Franzoesisch',
+    },
+    errors: {
+      pasteFirst: 'Fuege zuerst einen Entwurf ein.',
+      addDraft: 'Fuege zuerst einen Entwurf hinzu.',
+      nothingToCopy: 'Nichts zum Kopieren vorhanden.',
+      clipboardEmpty: 'Die Zwischenablage ist leer.',
+      copyFailed: 'Der Text konnte nicht kopiert werden.',
+      pasteFailed: 'Der Text konnte nicht eingefuegt werden.',
+      dictationUnsupported: 'Spracherkennung ist in diesem Browser nicht verfuegbar.',
+      dictationFailed: 'Diktat fehlgeschlagen',
+      couldNotStart: 'Die Sprachaufnahme konnte nicht gestartet werden.',
+    },
+  },
+  fr: {
+    hero: {
+      eyebrow: 'SafeToSend',
+      title: 'Est-ce prudent de l envoyer ?',
+      subtitle: 'Ton deuxieme regard avant lenvoi.',
+    },
+    panel: {
+      kicker: 'Brouillon',
+      title: 'Le message vit ici.',
+      ready: 'Pret',
+      resultsPlaceholder: 'Les resultats apparaissent ici apres la verification ou la reecriture du message.',
+      likelyIntent: 'Intention probable',
+      confidence: 'Confiance',
+      reasons: 'Raisons',
+      changes: 'Ce qui a change',
+    },
+    fields: {
+      interfaceLanguage: 'Langue de l interface',
+      workingText: 'Texte',
+      audience: 'Destinataire',
+      goal: 'Objectif',
+      voice: 'Commandes vocales',
+    },
+    placeholders: {
+      workingText: 'Colle, saisis ou reecris le message ici.',
+      goal: 'Demander une clarification',
+      voice: 'rends-le plus court et moins brusque',
+    },
+    buttons: {
+      undo: 'Annuler',
+      redo: 'Retablir',
+      copy: 'Copier',
+      copied: 'Copie',
+      paste: 'Coller',
+      check: 'Verifier',
+      checking: 'Verification...',
+      submit: 'Reecrire',
+      submitting: 'Reecriture...',
+      mic: 'Micro',
+      stopMic: 'Arreter',
+    },
+    status: {
+      idle: 'Pret',
+      analyzing: 'Verification',
+      rewriting: 'Reecriture',
+      listening: 'Ecoute',
+      draftChanged: 'Brouillon modifie',
+      startDraft: 'Colle, saisis ou dicte un brouillon.',
+      beforeCheck: 'Avant verification',
+      beforePaste: 'Avant collage',
+      beforeRewrite: 'Avant reecriture',
+      clipboardPasted: 'Texte colle',
+      voiceCommandCaptured: 'Commande vocale capturee',
+      draftCopied: 'Texte copie',
+      analysisUpdated: 'Analyse mise a jour',
+      requestFailed: "La requete a l'IA a echoue.",
+      analysisFailed: "Impossible de verifier le texte.",
+      rewriteFailed: "Impossible de reecrire le texte.",
+    },
+    verdicts: {
+      ok: 'Peut etre envoye',
+      risky: 'A retravailler',
+      hold: 'Ne lenvoie pas encore',
+    },
+    risks: {
+      low: 'faible',
+      medium: 'moyen',
+      high: 'eleve',
+    },
+    audiences: {
+      boss: { label: 'Manager', helper: 'Court, clair, sans friction' },
+      client: { label: 'Client', helper: 'Soigne, prudent, confiant' },
+      colleague: { label: 'Collegue', helper: 'Direct et collaboratif' },
+      partner: { label: 'Partenaire', helper: 'Chaleureux et non defensif' },
+      other: { label: 'Autre', helper: 'Neutre et adaptable' },
+    },
+    analysis: {
+      likelyIntent: 'Intention probable',
+      confidence: 'Confiance',
+      resultsPlaceholder: 'Les resultats apparaissent ici apres la verification ou la reecriture du message.',
+      analysisHighlights: 'Passages delicats',
+      rewriteHighlights: 'Passages reecrits',
+    },
+    changes: {
+      title: 'Ce qui a change',
+      summary: 'Modification',
+      added: 'Ajoute',
+      removed: 'Supprime',
+      replaced: 'Remplace',
+      from: 'Avant',
+      to: 'Apres',
+    },
+    locales: {
+      en: 'Anglais',
+      ru: 'Russe',
+      es: 'Espagnol',
+      de: 'Allemand',
+      fr: 'Francais',
+    },
+    errors: {
+      pasteFirst: 'Colle dabord un brouillon.',
+      addDraft: 'Ajoute dabord un brouillon.',
+      nothingToCopy: 'Rien a copier.',
+      clipboardEmpty: 'Le presse-papiers est vide.',
+      copyFailed: 'Impossible de copier le texte.',
+      pasteFailed: 'Impossible de coller le texte.',
+      dictationUnsupported: "La reconnaissance vocale n'est pas disponible dans ce navigateur.",
+      dictationFailed: 'La dictee a echoue',
+      couldNotStart: "Impossible de demarrer la capture vocale.",
     },
   },
 } as const
@@ -335,12 +674,24 @@ function buildAudienceOptions(copy: Copy): Array<{ value: Audience; label: strin
   ]
 }
 
-function defaultRewriteInstruction(locale: Locale) {
-  if (locale === 'ru') {
-    return 'Перепиши текст яснее, спокойнее и так, чтобы его можно было отправить, не меняя язык черновика.'
-  }
+const DEFAULT_REWRITE_INSTRUCTION: Record<Locale, string> = {
+  en: 'Rewrite this to be clearer, calmer, and ready to send while keeping the draft text in English.',
+  ru: 'Перепиши текст яснее, спокойнее и так, чтобы его можно было отправить, не меняя язык черновика.',
+  es: 'Reescribe el texto para que sea mas claro, mas calmado y listo para enviar, manteniendo el borrador en ingles.',
+  de: 'Formuliere den Text klarer, ruhiger und versandbereit um und halte den Entwurf auf Englisch.',
+  fr: 'Reecris le texte pour qu il soit plus clair, plus calme et pret a envoyer, en gardant le brouillon en anglais.',
+}
 
-  return 'Rewrite this to be clearer, calmer, and ready to send while keeping the draft text in English.'
+const SPEECH_RECOGNITION_LOCALE: Record<Locale, string> = {
+  en: 'en-US',
+  ru: 'ru-RU',
+  es: 'es-ES',
+  de: 'de-DE',
+  fr: 'fr-FR',
+}
+
+function defaultRewriteInstruction(locale: Locale) {
+  return DEFAULT_REWRITE_INSTRUCTION[locale]
 }
 
 type HighlightTone = 'yellow' | 'red' | 'green'
@@ -351,60 +702,44 @@ type HighlightSpan = {
   label: string
 }
 
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+function findHighlightIndex(text: string, needle: string, fromIndex: number) {
+  const exactIndex = text.indexOf(needle, fromIndex)
+  if (exactIndex >= 0) {
+    return exactIndex
+  }
+
+  return text.toLowerCase().indexOf(needle.toLowerCase(), fromIndex)
 }
 
 function buildHighlightSegments(text: string, highlights: HighlightSpan[]) {
-  const matchSegments = highlights
-    .flatMap((highlight, index) => {
-      const needle = highlight.text.trim()
-      if (!needle) {
-        return []
-      }
+  const accepted: Array<{ start: number; end: number; highlight: HighlightSpan }> = []
+  let searchFrom = 0
 
-      const pattern = new RegExp(escapeRegExp(needle), 'gi')
-      const matches: Array<{ start: number; end: number; highlight: HighlightSpan; index: number }> = []
-      let match: RegExpExecArray | null
-
-      while ((match = pattern.exec(text))) {
-        matches.push({
-          start: match.index,
-          end: match.index + match[0].length,
-          highlight,
-          index,
-        })
-
-        if (match.index === pattern.lastIndex) {
-          pattern.lastIndex += 1
-        }
-      }
-
-      return matches
-    })
-    .sort((left, right) => {
-      if (left.start !== right.start) {
-        return left.start - right.start
-      }
-
-      if (right.end !== left.end) {
-        return right.end - left.end
-      }
-
-      return left.index - right.index
-    })
-
-  const accepted: typeof matchSegments = []
-  let cursor = 0
-
-  for (const segment of matchSegments) {
-    if (segment.start < cursor) {
+  for (const highlight of highlights) {
+    const needle = highlight.text.trim()
+    if (!needle) {
       continue
     }
 
-    accepted.push(segment)
-    cursor = segment.end
+    let start = findHighlightIndex(text, needle, searchFrom)
+    if (start < 0) {
+      start = findHighlightIndex(text, needle, 0)
+    }
+    if (start < 0) {
+      continue
+    }
+
+    const end = start + needle.length
+    const overlapsExisting = accepted.some((segment) => start < segment.end && end > segment.start)
+    if (overlapsExisting) {
+      continue
+    }
+
+    accepted.push({ start, end, highlight })
+    searchFrom = end
   }
+
+  accepted.sort((left, right) => left.start - right.start)
 
   const pieces: Array<
     | { kind: 'text'; value: string }
@@ -576,6 +911,10 @@ export default function Page() {
   useEffect(() => {
     document.documentElement.lang = locale
     document.title = `${copy.hero.eyebrow} — ${copy.hero.title}`
+
+    if (recognitionRef.current) {
+      recognitionRef.current.lang = SPEECH_RECOGNITION_LOCALE[locale]
+    }
   }, [copy.hero.eyebrow, copy.hero.title, locale])
 
   useEffect(() => {
@@ -869,7 +1208,7 @@ export default function Page() {
 
     if (!recognitionRef.current) {
       const recognition = new Recognition()
-      recognition.lang = locale === 'ru' ? 'ru-RU' : 'en-US'
+      recognition.lang = SPEECH_RECOGNITION_LOCALE[locale]
       recognition.continuous = false
       recognition.interimResults = false
       recognition.onresult = (event: any) => {
@@ -900,8 +1239,9 @@ export default function Page() {
     }
   }
 
-    const verdictLabel = analysis ? localizedVerdict(analysis.verdict, copy) : copy.panel.ready
-    const riskLabel = analysis ? localizedRisk(analysis.riskLevel, copy) : '—'
+  const verdictLabel = analysis ? localizedVerdict(analysis.verdict, copy) : copy.panel.ready
+  const riskLabel = analysis ? localizedRisk(analysis.riskLevel, copy) : '—'
+  const riskTone = analysis?.riskLevel ?? ''
 
   return (
     <main className="page-shell">
@@ -931,7 +1271,7 @@ export default function Page() {
         <section className="analysis-card" aria-live="polite">
           <div className="analysis-topline">
             <span className={`verdict-pill ${verdictTone}`}>{verdictLabel}</span>
-            <span className={`risk-chip ${riskLabel}`}>{riskLabel}</span>
+            <span className={`risk-chip ${riskTone}`}>{riskLabel}</span>
           </div>
           <p className="analysis-meta">
             {analysis
@@ -1024,6 +1364,7 @@ export default function Page() {
                 key={option.value}
                 className={`chip-button ${locale === option.value ? 'selected' : ''}`}
                 onClick={() => setLocale(option.value)}
+                aria-pressed={locale === option.value}
                 type="button"
               >
                 {option.label}

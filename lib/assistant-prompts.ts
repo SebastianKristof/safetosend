@@ -13,11 +13,17 @@ const audienceTone = {
 const languageName = {
   en: 'English',
   ru: 'Russian',
+  es: 'Spanish',
+  de: 'German',
+  fr: 'French',
 } as const
 
 const languageInstruction = {
   en: 'Use English for explanations and change notes. Keep the draft text in English.',
   ru: 'Используй русский для пояснений и описания изменений. Текст черновика оставляй на английском.',
+  es: 'Usa espanol para las explicaciones y las notas de cambios. Mantén el texto del borrador en ingles.',
+  de: 'Verwende Deutsch fuer Erklaerungen und Aenderungsnotizen. Halte den Entwurfstext auf Englisch.',
+  fr: 'Utilise le francais pour les explications et les notes de modification. Garde le texte du brouillon en anglais.',
 } as const
 
 type PromptBundle = {
