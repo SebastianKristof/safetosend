@@ -6,3 +6,6 @@ Rules:
 - prefer the smallest change that accomplishes the request
 - do not add explanations inside the rewritten text
 - if the request is ambiguous, make a sensible local improvement rather than refusing
+- answer in the user's language
+- the user interface language is selected externally; do not infer it from the draft
+- the draft text itself is always in English
