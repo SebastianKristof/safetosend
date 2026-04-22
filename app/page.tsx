@@ -848,6 +848,7 @@ export default function Page() {
   const [copied, setCopied] = useState(false)
   const [clientId, setClientId] = useState('anonymous')
   const [speechSupported, setSpeechSupported] = useState(false)
+  const [editorScrollTop, setEditorScrollTop] = useState(0)
 
   const recognitionRef = useRef<SpeechRecognitionController | null>(null)
   const hydratedRef = useRef(false)
@@ -969,8 +970,28 @@ export default function Page() {
 
     return verdictStyle(analysis.verdict)
   }, [analysis])
-
   const draftIsStale = Boolean(analysis) && workingText.trim() !== lastAnalyzedDraftRef.current.trim()
+  const editorHighlights = useMemo<HighlightSpan[]>(() => {
+    if (lastChanges.length) {
+      return lastChanges
+        .filter((change) => change.after.trim())
+        .map((change) => ({
+          text: change.after,
+          tone: 'green' as const,
+          label: change.summary,
+        }))
+    }
+
+    if (!draftIsStale && analysis?.highlights?.length) {
+      return analysis.highlights.map((highlight) => ({
+        text: highlight.text,
+        tone: highlight.severity,
+        label: highlight.reason,
+      }))
+    }
+
+    return []
+  }, [analysis, draftIsStale, lastChanges])
   const statusText =
     status === 'listening'
       ? copy.status.listening
@@ -1251,9 +1272,26 @@ export default function Page() {
           <h1>{copy.hero.title}</h1>
           <p className="subtle">{copy.hero.subtitle}</p>
         </div>
-        <div className="status-pill" aria-live="polite">
-          <span className={`status-dot ${status === 'idle' ? 'idle' : 'busy'}`} />
-          <span>{statusText}</span>
+        <div className="hero-actions">
+          <label className="header-language" htmlFor="ui-language">
+            <span>{copy.fields.interfaceLanguage}</span>
+            <select
+              id="ui-language"
+              className="control header-select"
+              value={locale}
+              onChange={(event) => setLocale(event.target.value as Locale)}
+            >
+              {localeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="status-pill" aria-live="polite">
+            <span className={`status-dot ${status === 'idle' ? 'idle' : 'busy'}`} />
+            <span>{statusText}</span>
+          </div>
         </div>
       </header>
 
@@ -1290,34 +1328,40 @@ export default function Page() {
           ) : null}
         </section>
 
-        {analysis?.highlights?.length ? (
-          <section className="analysis-card highlight-card" aria-live="polite">
-            <p className="analysis-reasons-label">{copy.analysis.analysisHighlights}</p>
-            <HighlightedText
-              text={workingText}
-              highlights={analysis.highlights.map((highlight) => ({
-                text: highlight.text,
-                tone: highlight.severity,
-                label: highlight.reason,
-              }))}
-              emptyLabel={copy.analysis.resultsPlaceholder}
-            />
-          </section>
-        ) : null}
-
         <div className="editor-shell">
           <label className="field editor-field">
             <span>{copy.fields.workingText}</span>
-            <textarea
-              className="text-input draft-input"
-              value={workingText}
-              onChange={(event) => {
-                setWorkingText(event.target.value)
-                setError(null)
-                setLastChanges([])
-              }}
-              placeholder={copy.placeholders.workingText}
+            <div className="editor-surface">
+              <div className="editor-backdrop" aria-hidden="true">
+                <div
+                  className="editor-highlight-layer"
+                  style={{ transform: `translateY(-${editorScrollTop}px)` }}
+                >
+                  {workingText ? (
+                    <HighlightedText
+                      text={workingText}
+                      highlights={editorHighlights}
+                      emptyLabel={copy.analysis.resultsPlaceholder}
+                    />
+                  ) : (
+                    <p className="editor-placeholder">{copy.placeholders.workingText}</p>
+                  )}
+                </div>
+              </div>
+              <textarea
+                className="text-input draft-input editor-textarea"
+                value={workingText}
+                onChange={(event) => {
+                  setWorkingText(event.target.value)
+                  setError(null)
+                  setLastChanges([])
+                }}
+                onScroll={(event) => {
+                  setEditorScrollTop(event.currentTarget.scrollTop)
+                }}
+                placeholder={copy.placeholders.workingText}
               />
+            </div>
           </label>
 
           <div className="history-rail" aria-label={copy.panel.changes}>
@@ -1353,23 +1397,6 @@ export default function Page() {
             >
               {copy.buttons.paste}
             </button>
-          </div>
-        </div>
-
-        <div className="locale-row" aria-label={copy.fields.interfaceLanguage}>
-          <span className="locale-label">{copy.fields.interfaceLanguage}</span>
-          <div className="locale-switch">
-            {localeOptions.map((option) => (
-              <button
-                key={option.value}
-                className={`chip-button ${locale === option.value ? 'selected' : ''}`}
-                onClick={() => setLocale(option.value)}
-                aria-pressed={locale === option.value}
-                type="button"
-              >
-                {option.label}
-              </button>
-            ))}
           </div>
         </div>
 
@@ -1458,22 +1485,6 @@ export default function Page() {
                 {copy.changes.title} · v{version}
               </span>
             </div>
-            <p className="analysis-reasons-label">{copy.analysis.rewriteHighlights}</p>
-            <HighlightedText
-              text={workingText}
-              highlights={lastChanges
-                .map((change) =>
-                  change.after.trim()
-                    ? ({
-                        text: change.after,
-                        tone: 'green',
-                        label: change.summary,
-                      } as const)
-                    : null,
-                )
-                .filter(Boolean) as HighlightSpan[]}
-              emptyLabel={copy.analysis.resultsPlaceholder}
-            />
             <ul className="change-list">
               {lastChanges.map((change, index) => (
                 <li key={`${change.summary}-${index}`} className="change-item">

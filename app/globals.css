@@ -68,6 +68,12 @@ button {
   min-width: min(100%, 20rem);
 }
 
+.hero-actions {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
 .eyebrow,
 .panel-kicker {
   margin: 0;
@@ -114,6 +120,22 @@ h2 {
   color: var(--muted);
   box-shadow: var(--shadow);
   white-space: nowrap;
+}
+
+.header-language {
+  display: grid;
+  gap: 6px;
+  min-width: 11rem;
+}
+
+.header-language > span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.header-select {
+  height: 38px;
 }
 
 .status-dot {
@@ -201,6 +223,36 @@ h2 {
   min-width: 0;
 }
 
+.editor-surface {
+  position: relative;
+  min-height: clamp(9rem, 24svh, 14rem);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.editor-surface:focus-within {
+  border-color: rgba(9, 105, 218, 0.45);
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.14);
+}
+
+.editor-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.editor-highlight-layer {
+  min-height: 100%;
+  padding: 12px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.94rem;
+  line-height: 1.5;
+}
+
 .history-rail {
   display: grid;
   gap: 8px;
@@ -244,6 +296,36 @@ h2 {
 
 .draft-input {
   min-height: clamp(9rem, 24svh, 14rem);
+}
+
+.editor-textarea {
+  position: relative;
+  z-index: 1;
+  min-height: clamp(9rem, 24svh, 14rem);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text);
+  -webkit-text-fill-color: transparent;
+  font-size: 0.94rem;
+  line-height: 1.5;
+}
+
+.editor-textarea:focus {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.editor-textarea::placeholder {
+  color: transparent;
+  text-shadow: none;
+}
+
+.editor-placeholder {
+  margin: 0;
+  color: var(--soft);
+  line-height: 1.5;
 }
 
 .edit-input {
@@ -319,12 +401,6 @@ h2 {
   font-size: 0.85rem;
 }
 
-.chip-button.selected {
-  background: #ddf4ff;
-  border-color: #b6e3ff;
-  color: #0550ae;
-}
-
 .error-banner {
   padding: 10px 12px;
   border-radius: 12px;
@@ -344,26 +420,6 @@ h2 {
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
   align-items: end;
-}
-
-.locale-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  padding-top: 2px;
-}
-
-.locale-label {
-  color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.locale-switch {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 .edit-button {
@@ -512,10 +568,11 @@ h2 {
 .highlight-text {
   margin: 0;
   color: var(--text);
-  line-height: 1.6;
+  line-height: 1.5;
   font-size: 0.94rem;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  min-height: 100%;
 }
 
 .highlight-mark {
@@ -641,6 +698,15 @@ h2 {
     justify-content: center;
   }
 
+  .hero-actions {
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .header-language {
+    min-width: 0;
+  }
+
   .editor-shell {
     grid-template-columns: 1fr;
     gap: 8px;
@@ -664,10 +730,6 @@ h2 {
 
   .voice-row {
     grid-template-columns: 1fr;
-  }
-
-  .locale-row {
-    justify-content: flex-start;
   }
 
   .edit-button,
