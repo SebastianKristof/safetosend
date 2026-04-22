@@ -109,11 +109,11 @@ const UI_COPY = {
       to: 'To',
     },
     locales: {
-      en: 'English',
-      ru: 'Russian',
-      es: 'Spanish',
-      de: 'German',
-      fr: 'French',
+      en: 'EN',
+      ru: 'RU',
+      es: 'ES',
+      de: 'DE',
+      fr: 'FR',
     },
     errors: {
       pasteFirst: 'Paste a draft first.',
@@ -222,11 +222,11 @@ const UI_COPY = {
       to: 'Стало',
     },
     locales: {
-      en: 'Английский',
-      ru: 'Русский',
-      es: 'Испанский',
-      de: 'Немецкий',
-      fr: 'Французский',
+      en: 'EN',
+      ru: 'RU',
+      es: 'ES',
+      de: 'DE',
+      fr: 'FR',
     },
     errors: {
       pasteFirst: 'Сначала вставьте черновик.',
@@ -335,11 +335,11 @@ const UI_COPY = {
       to: 'Despues',
     },
     locales: {
-      en: 'Ingles',
-      ru: 'Ruso',
-      es: 'Espanol',
-      de: 'Aleman',
-      fr: 'Frances',
+      en: 'EN',
+      ru: 'RU',
+      es: 'ES',
+      de: 'DE',
+      fr: 'FR',
     },
     errors: {
       pasteFirst: 'Primero pega un borrador.',
@@ -448,11 +448,11 @@ const UI_COPY = {
       to: 'Nachher',
     },
     locales: {
-      en: 'Englisch',
-      ru: 'Russisch',
-      es: 'Spanisch',
-      de: 'Deutsch',
-      fr: 'Franzoesisch',
+      en: 'EN',
+      ru: 'RU',
+      es: 'ES',
+      de: 'DE',
+      fr: 'FR',
     },
     errors: {
       pasteFirst: 'Fuege zuerst einen Entwurf ein.',
@@ -561,11 +561,11 @@ const UI_COPY = {
       to: 'Apres',
     },
     locales: {
-      en: 'Anglais',
-      ru: 'Russe',
-      es: 'Espagnol',
-      de: 'Allemand',
-      fr: 'Francais',
+      en: 'EN',
+      ru: 'RU',
+      es: 'ES',
+      de: 'DE',
+      fr: 'FR',
     },
     errors: {
       pasteFirst: 'Colle dabord un brouillon.',
@@ -660,18 +660,6 @@ function localizedVerdict(verdict: Verdict, copy: Copy) {
   }
 
   return copy.verdicts.hold
-}
-
-function localizedRisk(risk: AnalysisResponse['riskLevel'], copy: Copy) {
-  if (risk === 'low') {
-    return copy.risks.low
-  }
-
-  if (risk === 'medium') {
-    return copy.risks.medium
-  }
-
-  return copy.risks.high
 }
 
 function buildAnalysisContextPayload(analysis: AnalysisResponse | null) {
@@ -827,6 +815,28 @@ function HighlightedText({
         )
       })}
     </p>
+  )
+}
+
+function RewriteIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <path
+        d="M7 7h9l-2.5-2.5L15 3l5 5-5 5-1.5-1.5L16 9H7a3 3 0 0 0 0 6h2v2H7a5 5 0 0 1 0-10Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function MicIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <path
+        d="M12 15a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm-5-3H5a7 7 0 0 0 6 6.92V22h2v-3.08A7 7 0 0 0 19 12h-2a5 5 0 1 1-10 0Z"
+        fill="currentColor"
+      />
+    </svg>
   )
 }
 
@@ -1287,8 +1297,6 @@ export default function Page() {
   }
 
   const verdictLabel = analysis ? localizedVerdict(analysis.verdict, copy) : copy.panel.ready
-  const riskLabel = analysis ? localizedRisk(analysis.riskLevel, copy) : '—'
-  const riskTone = analysis?.riskLevel ?? ''
 
   return (
     <main className="page-shell">
@@ -1300,7 +1308,6 @@ export default function Page() {
         </div>
         <div className="hero-actions">
           <label className="header-language" htmlFor="ui-language">
-            <span>{copy.fields.interfaceLanguage}</span>
             <select
               id="ui-language"
               className="control header-select"
@@ -1314,46 +1321,10 @@ export default function Page() {
               ))}
             </select>
           </label>
-          <div className="status-pill" aria-live="polite">
-            <span className={`status-dot ${status === 'idle' ? 'idle' : 'busy'}`} />
-            <span>{statusText}</span>
-          </div>
         </div>
       </header>
 
       <section className="panel composer-card">
-        <div className="panel-head">
-          <div>
-            <p className="panel-kicker">{copy.panel.kicker}</p>
-            <h2>{copy.panel.title}</h2>
-          </div>
-          <div className={`analysis-badge ${draftIsStale ? 'stale' : 'fresh'}`}>
-            {analysis ? verdictLabel : copy.panel.ready}
-          </div>
-        </div>
-
-        <section className="analysis-card" aria-live="polite">
-          <div className="analysis-topline">
-            <span className={`verdict-pill ${verdictTone}`}>{verdictLabel}</span>
-            <span className={`risk-chip ${riskTone}`}>{riskLabel}</span>
-          </div>
-          <p className="analysis-meta">
-            {analysis
-              ? `${copy.analysis.likelyIntent}: ${analysis.inferredGoal} · ${copy.analysis.confidence} ${Math.round(analysis.confidence * 100)}%`
-              : copy.analysis.resultsPlaceholder}
-          </p>
-          {analysis ? (
-            <div className="analysis-reasons">
-              <p className="analysis-reasons-label">{copy.panel.reasons}</p>
-              <ul className="reason-list">
-                {analysis.reasons.map((reason) => (
-                  <li key={reason}>{reason}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </section>
-
         <div className="editor-shell">
           <label className="field editor-field">
             <span>{copy.fields.workingText}</span>
@@ -1444,11 +1415,12 @@ export default function Page() {
 
           <label className="field">
             <span>{copy.fields.goal}</span>
-            <input
-              className="control"
+            <textarea
+              className="control compact-textarea"
               value={goal}
               onChange={(event) => setGoal(event.target.value)}
               placeholder={copy.placeholders.goal}
+              rows={2}
             />
           </label>
         </div>
@@ -1475,34 +1447,62 @@ export default function Page() {
         <div className="voice-row">
           <label className="field grow">
             <span>{copy.fields.voice}</span>
-            <input
-              className="control"
+            <textarea
+              className="control compact-textarea"
               value={voiceCommand}
               onChange={(event) => setVoiceCommand(event.target.value)}
               placeholder={copy.placeholders.voice}
+              rows={2}
             />
           </label>
 
-          <button
-            className="secondary-button edit-button"
-            onClick={() => void runRewrite()}
-            disabled={status !== 'idle' || !workingText.trim()}
-            type="button"
-          >
-            {status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
-          </button>
+          <div className="voice-actions">
+            <button
+              className="secondary-button icon-button edit-button"
+              onClick={() => void runRewrite()}
+              disabled={status !== 'idle' || !workingText.trim()}
+              type="button"
+              title={status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
+              aria-label={status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
+            >
+              <RewriteIcon />
+            </button>
 
-          <button
-            className="ghost-button mic-button"
-            onClick={() => void toggleVoiceCommandMic()}
-            disabled
-            type="button"
-          >
-            {status === 'listening' ? copy.buttons.stopMic : copy.buttons.mic}
-          </button>
+            <button
+              className="ghost-button icon-button mic-button"
+              onClick={() => void toggleVoiceCommandMic()}
+              disabled
+              type="button"
+              title={status === 'listening' ? copy.buttons.stopMic : copy.buttons.mic}
+              aria-label={status === 'listening' ? copy.buttons.stopMic : copy.buttons.mic}
+            >
+              <MicIcon />
+            </button>
+          </div>
         </div>
 
         {error ? <div className="error-banner">{error}</div> : null}
+
+        <section className="analysis-card" aria-live="polite">
+          <div className="analysis-topline">
+            <span className={`verdict-pill ${verdictTone}`}>{verdictLabel}</span>
+          </div>
+          <p className="analysis-meta">
+            {analysis
+              ? `${copy.analysis.likelyIntent}: ${analysis.inferredGoal} · ${copy.analysis.confidence} ${Math.round(analysis.confidence * 100)}%`
+              : copy.analysis.resultsPlaceholder}
+          </p>
+          {analysis ? (
+            <div className="analysis-reasons">
+              <p className="analysis-reasons-label">{copy.panel.reasons}</p>
+              <ul className="reason-list">
+                {analysis.reasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
 
         {past.length || lastChanges.length || future.length ? (
           <section className="analysis-card version-card" aria-live="polite">
