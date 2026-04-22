@@ -9,7 +9,7 @@ Draft:
 {{text}}
 
 Return:
-- verdict: one of OK to send / Risky - revise / Do not send yet
+ - verdict: one of Safe to send / Risky - revise / Do not send yet
 - riskLevel: low / medium / high
 - reasons: 1 to 3 short reasons in the interface language
 - highlights: 0 to 5 exact quoted draft fragments with severity yellow or red and short reasons in the interface language

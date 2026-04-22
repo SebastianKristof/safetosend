@@ -11,7 +11,7 @@ import type {
 } from '@/lib/assistant-contracts'
 import type { DraftSnapshot } from '@/lib/assistant-client'
 
-const STORAGE_KEY = 'safetosend.app.state.v2'
+const STORAGE_KEY = 'safetosend.app.state.v3'
 
 const UI_COPY = {
   en: {
@@ -76,7 +76,7 @@ const UI_COPY = {
       rewriteFailed: 'Rewrite failed.',
     },
     verdicts: {
-      ok: 'OK to send',
+      ok: 'Safe to send',
       risky: 'Risky - revise',
       hold: 'Do not send yet',
     },
@@ -635,7 +635,7 @@ function buildClientId() {
 }
 
 function verdictStyle(verdict: Verdict) {
-  if (verdict === 'OK to send') {
+  if (verdict === 'Safe to send') {
     return 'verdict-ok'
   }
 
@@ -651,7 +651,7 @@ function getCopy(locale: Locale): Copy {
 }
 
 function localizedVerdict(verdict: Verdict, copy: Copy) {
-  if (verdict === 'OK to send') {
+  if (verdict === 'Safe to send') {
     return copy.verdicts.ok
   }
 
@@ -672,6 +672,22 @@ function localizedRisk(risk: AnalysisResponse['riskLevel'], copy: Copy) {
   }
 
   return copy.risks.high
+}
+
+function buildAnalysisContextPayload(analysis: AnalysisResponse | null) {
+  if (!analysis) {
+    return undefined
+  }
+
+  const verdict = analysis.verdict
+  const verdictIsCurrent =
+    verdict === 'Safe to send' || verdict === 'Risky - revise' || verdict === 'Do not send yet'
+
+  return {
+    verdict: verdictIsCurrent ? verdict : undefined,
+    reasons: analysis.reasons,
+    inferredGoal: analysis.inferredGoal,
+  }
 }
 
 function buildAudienceOptions(copy: Copy): Array<{ value: Audience; label: string; helper: string }> {
@@ -870,6 +886,9 @@ export default function Page() {
       ([
         { value: 'en', label: copy.locales.en },
         { value: 'ru', label: copy.locales.ru },
+        { value: 'es', label: copy.locales.es },
+        { value: 'de', label: copy.locales.de },
+        { value: 'fr', label: copy.locales.fr },
       ] as const),
     [copy],
   )
@@ -1050,13 +1069,7 @@ export default function Page() {
         goal,
         locale,
         clientId,
-        analysisContext: analysis
-          ? {
-              verdict: analysis.verdict,
-              reasons: analysis.reasons,
-              inferredGoal: analysis.inferredGoal,
-            }
-          : undefined,
+        analysisContext: buildAnalysisContextPayload(analysis),
       }, copy.status.requestFailed)
 
       setAnalysis(result)
@@ -1110,13 +1123,7 @@ export default function Page() {
         locale,
         instruction,
         clientId,
-        analysisContext: analysis
-          ? {
-              verdict: analysis.verdict,
-              reasons: analysis.reasons,
-              inferredGoal: analysis.inferredGoal,
-            }
-          : undefined,
+        analysisContext: buildAnalysisContextPayload(analysis),
       }, copy.status.requestFailed)
 
       setVersion((current) => current + 1)

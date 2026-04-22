@@ -2,8 +2,7 @@ import { z } from 'zod'
 
 export const audienceSchema = z.enum(['boss', 'client', 'colleague', 'partner', 'other'])
 export const localeSchema = z.enum(['en', 'ru', 'es', 'de', 'fr'])
-
-export const verdictSchema = z.enum(['OK to send', 'Risky - revise', 'Do not send yet'])
+export const verdictSchema = z.enum(['Safe to send', 'Risky - revise', 'Do not send yet'])
 
 export const riskLevelSchema = z.enum(['low', 'medium', 'high'])
 

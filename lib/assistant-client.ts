@@ -9,7 +9,7 @@ export type DraftSnapshot = {
 }
 
 export function verdictClass(verdict: Verdict) {
-  if (verdict === 'OK to send') {
+  if (verdict === 'Safe to send') {
     return 'ok'
   }
 

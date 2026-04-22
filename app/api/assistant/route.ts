@@ -18,9 +18,14 @@ export async function POST(request: Request) {
   const parsed = assistantRequestSchema.safeParse(body)
 
   if (!parsed.success) {
+    const fieldErrors = Object.entries(parsed.error.flatten().fieldErrors)
+      .flatMap(([field, messages]) => (messages ?? []).map((message) => `${field}: ${message}`))
+      .join(' | ')
+
     return NextResponse.json(
       {
         error: 'Invalid request.',
+        detail: fieldErrors || undefined,
         issues: parsed.error.flatten(),
       },
       { status: 400 },
