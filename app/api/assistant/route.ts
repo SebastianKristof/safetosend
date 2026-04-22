@@ -28,8 +28,21 @@ export async function POST(request: Request) {
   }
 
   const payload = parsed.data
+  const locale = payload.locale
   const inferenceConfig = getInferenceConfig()
   const prompts = await getPromptBundle()
+  const messages = {
+    en: {
+      missingDraft: 'Missing draft text.',
+      missingInstruction: 'Missing edit instruction.',
+      requestFailed: 'AI request failed.',
+    },
+    ru: {
+      missingDraft: 'Не хватает текста черновика.',
+      missingInstruction: 'Не хватает инструкции для правки.',
+      requestFailed: 'Запрос к ИИ не удался.',
+    },
+  }[locale]
 
   const buildProviderOptions = (provider: InferenceProvider) =>
     provider === 'vercel'
@@ -44,7 +57,7 @@ export async function POST(request: Request) {
   try {
     if (payload.mode === 'analyze') {
       if (payload.text.trim().length < 3) {
-        return NextResponse.json({ error: 'Missing draft text.' }, { status: 400 })
+        return NextResponse.json({ error: messages.missingDraft }, { status: 400 })
       }
 
       const slot = inferenceConfig.textAnalysis
@@ -66,11 +79,11 @@ export async function POST(request: Request) {
     }
 
     if (payload.text.trim().length < 3) {
-      return NextResponse.json({ error: 'Missing draft text.' }, { status: 400 })
+      return NextResponse.json({ error: messages.missingDraft }, { status: 400 })
     }
 
     if (!payload.instruction?.trim()) {
-      return NextResponse.json({ error: 'Missing edit instruction.' }, { status: 400 })
+      return NextResponse.json({ error: messages.missingInstruction }, { status: 400 })
     }
 
     const slot = inferenceConfig.textGeneration
@@ -92,7 +105,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: 'AI request failed.',
+        error: messages.requestFailed,
         detail: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 502 },

@@ -1,9 +1,11 @@
-import type { AnalysisResponse, Verdict } from './assistant-contracts'
+import type { AnalysisResponse, TransformChange, Verdict } from './assistant-contracts'
 
 export type DraftSnapshot = {
+  version: number
   draft: string
   analysis: AnalysisResponse | null
   note: string
+  changes: TransformChange[]
 }
 
 export function verdictClass(verdict: Verdict) {

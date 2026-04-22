@@ -10,6 +10,16 @@ const audienceTone = {
   other: 'neutral, clear, and low-friction',
 } as const
 
+const languageName = {
+  en: 'English',
+  ru: 'Russian',
+} as const
+
+const languageInstruction = {
+  en: 'Use English for explanations and change notes. Keep the draft text in English.',
+  ru: 'Используй русский для пояснений и описания изменений. Текст черновика оставляй на английском.',
+} as const
+
 type PromptBundle = {
   analyzeSystem: string
   analyzeUser: string
@@ -54,6 +64,9 @@ export function buildAnalysisPrompt(request: AssistantRequest, template: string)
   return renderPrompt(template, {
     audience: request.audience,
     audience_tone: audienceTone[request.audience],
+    language_instruction: languageInstruction[request.locale],
+    language_name: languageName[request.locale],
+    locale: request.locale,
     goal,
     text: request.text.trim(),
   })
@@ -67,6 +80,9 @@ export function buildEditPrompt(request: AssistantRequest, template: string) {
   return renderPrompt(template, {
     audience: request.audience,
     audience_tone: audienceTone[request.audience],
+    language_instruction: languageInstruction[request.locale],
+    language_name: languageName[request.locale],
+    locale: request.locale,
     goal,
     context,
     text: request.text.trim(),
