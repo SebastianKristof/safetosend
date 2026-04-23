@@ -36,12 +36,10 @@ const UI_COPY = {
       interfaceLanguage: 'Interface language',
       workingText: 'Working text',
       audience: 'Audience',
-      goal: 'Goal',
       voice: 'Voice commands',
     },
     placeholders: {
       workingText: 'Paste, type, or rewrite the message here.',
-      goal: 'Ask for clarification',
       voice: 'make it shorter and less blunt',
     },
     buttons: {
@@ -149,12 +147,10 @@ const UI_COPY = {
       interfaceLanguage: 'Язык интерфейса',
       workingText: 'Текст',
       audience: 'Адресат',
-      goal: 'Цель',
       voice: 'Голосовые команды',
     },
     placeholders: {
       workingText: 'Вставьте, напечатайте или перепишите сообщение здесь.',
-      goal: 'Например: попросить уточнение',
       voice: 'сделай короче и мягче',
     },
     buttons: {
@@ -262,12 +258,10 @@ const UI_COPY = {
       interfaceLanguage: 'Idioma de la interfaz',
       workingText: 'Texto',
       audience: 'Destinatario',
-      goal: 'Objetivo',
       voice: 'Comandos de voz',
     },
     placeholders: {
       workingText: 'Pega, escribe o reescribe el mensaje aqui.',
-      goal: 'Pedir una aclaracion',
       voice: 'hazlo mas corto y menos brusco',
     },
     buttons: {
@@ -375,12 +369,10 @@ const UI_COPY = {
       interfaceLanguage: 'Sprache der Oberflaeche',
       workingText: 'Text',
       audience: 'Empfaenger',
-      goal: 'Ziel',
       voice: 'Sprachbefehle',
     },
     placeholders: {
       workingText: 'Fuege die Nachricht hier ein, tippe sie ein oder ueberarbeite sie.',
-      goal: 'Um Klarstellung bitten',
       voice: 'mach es kuerzer und weniger schroff',
     },
     buttons: {
@@ -488,12 +480,10 @@ const UI_COPY = {
       interfaceLanguage: 'Langue de l interface',
       workingText: 'Texte',
       audience: 'Destinataire',
-      goal: 'Objectif',
       voice: 'Commandes vocales',
     },
     placeholders: {
       workingText: 'Colle, saisis ou reecris le message ici.',
-      goal: 'Demander une clarification',
       voice: 'rends-le plus court et moins brusque',
     },
     buttons: {
@@ -586,7 +576,6 @@ type Copy = (typeof UI_COPY)[Locale]
 type PersistedState = {
   workingText: string
   audience: Audience
-  goal: string
   voiceCommand: string
   locale?: Locale
   version?: number
@@ -1028,6 +1017,96 @@ function DraftEditor({
   )
 }
 
+function ChevronDownIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" className="icon-glyph">
+      <path d="M5.5 7.5 10 12l4.5-4.5 1.4 1.4L10 14.8 4.1 8.9z" fill="currentColor" />
+    </svg>
+  )
+}
+
+function AudienceDropdown({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: Array<{ value: Audience; label: string; helper: string }>
+  value: Audience
+  onChange: (value: Audience) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const current = options.find((option) => option.value === value) ?? options[0]
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    function onPointerDown(event: PointerEvent) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  return (
+    <div ref={rootRef} className="audience-picker">
+      <span>{label}</span>
+      <button
+        className="control audience-button"
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((previous) => !previous)}
+      >
+        <span className="audience-button-copy">
+          <span className="audience-button-label">{current.label}</span>
+          <span className="audience-button-helper">{current.helper}</span>
+        </span>
+        <ChevronDownIcon />
+      </button>
+
+      {open ? (
+        <div className="audience-menu" role="listbox" aria-label={label}>
+          {options.map((option) => (
+            <button
+              key={option.value}
+              className={`audience-option ${option.value === value ? 'selected' : ''}`}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              onClick={() => {
+                onChange(option.value)
+                setOpen(false)
+              }}
+            >
+              <span className="audience-option-label">{option.label}</span>
+              <span className="audience-option-helper">{option.helper}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 async function postAssistant<T>(body: Record<string, unknown>, fallbackError: string) {
   const response = await fetch('/api/assistant', {
     method: 'POST',
@@ -1058,7 +1137,6 @@ async function postAssistant<T>(body: Record<string, unknown>, fallbackError: st
 export default function Page() {
   const [workingText, setWorkingText] = useState('')
   const [audience, setAudience] = useState<Audience>('other')
-  const [goal, setGoal] = useState('')
   const [voiceCommand, setVoiceCommand] = useState('')
   const [locale, setLocale] = useState<Locale>('en')
   const [version, setVersion] = useState(1)
@@ -1105,7 +1183,6 @@ export default function Page() {
     if (persisted) {
       setWorkingText(persisted.workingText)
       setAudience(persisted.audience)
-      setGoal(persisted.goal)
       setVoiceCommand(persisted.voiceCommand || '')
       setLocale(nextLocale)
       setVersion(Math.max(1, persistedVersion || 0))
@@ -1153,7 +1230,6 @@ export default function Page() {
     const state: PersistedState = {
       workingText,
       audience,
-      goal,
       voiceCommand,
       locale,
       analysis,
@@ -1171,7 +1247,6 @@ export default function Page() {
     audience,
     clientId,
     future,
-    goal,
     lastChangeNote,
     lastChanges,
     locale,
@@ -1255,7 +1330,6 @@ export default function Page() {
         mode: 'analyze',
         text: textToAnalyze,
         audience,
-        goal,
         locale,
         clientId,
         analysisContext: buildAnalysisContextPayload(analysis),
@@ -1312,7 +1386,6 @@ export default function Page() {
         mode: 'edit',
         text: source,
         audience,
-        goal,
         locale,
         instruction,
         clientId,
@@ -1578,32 +1651,13 @@ export default function Page() {
           </div>
         </div>
 
-        <div className="control-grid">
-          <label className="field">
-            <span>{copy.fields.audience}</span>
-            <select
-              className="control"
-              value={audience}
-              onChange={(event) => setAudience(event.target.value as Audience)}
-            >
-              {audienceOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label} - {option.helper}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field">
-            <span>{copy.fields.goal}</span>
-            <textarea
-              className="control compact-textarea"
-              value={goal}
-              onChange={(event) => setGoal(event.target.value)}
-              placeholder={copy.placeholders.goal}
-              rows={2}
-            />
-          </label>
+        <div className="audience-row">
+          <AudienceDropdown
+            label={copy.fields.audience}
+            options={audienceOptions}
+            value={audience}
+            onChange={setAudience}
+          />
         </div>
 
         <div className="button-grid">

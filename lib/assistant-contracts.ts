@@ -39,7 +39,6 @@ export const assistantRequestSchema = z.object({
   mode: z.enum(['analyze', 'edit']),
   text: z.string().default(''),
   audience: audienceSchema,
-  goal: z.string().default(''),
   locale: localeSchema.default('en'),
   instruction: z.string().optional(),
   clientId: z.string().optional(),

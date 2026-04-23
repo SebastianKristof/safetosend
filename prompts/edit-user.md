@@ -1,5 +1,4 @@
 Audience: {{audience}} ({{audience_tone}})
-Goal: {{goal}}
 Language: {{language_name}}
 {{language_instruction}}
 The user interface language is selected explicitly; do not infer it from the draft.
