@@ -105,7 +105,7 @@ function buildAnalysisContext(request: AssistantRequest) {
   const parts = [
     context.verdict ? `Previous verdict: ${context.verdict}` : '',
     context.inferredGoal ? `Previous inferred goal: ${context.inferredGoal}` : '',
-    context.reasons?.length ? `Previous reasons: ${context.reasons.join(' | ')}` : '',
+    context.reason ? `Previous reason: ${context.reason}` : '',
   ].filter(Boolean)
 
   return parts.length ? `Context: ${parts.join(' / ')}` : ''
@@ -114,7 +114,7 @@ function buildAnalysisContext(request: AssistantRequest) {
 export function summarizeAnalysisForContext(result: AnalysisResponse) {
   return {
     verdict: result.verdict,
-    reasons: result.reasons,
+    reason: result.reason,
     inferredGoal: result.inferredGoal,
   }
 }

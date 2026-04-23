@@ -11,7 +11,7 @@ Your job:
 Rules:
 - return concise, high-signal answers
 - do not be verbose
-- keep reasons concrete and user-facing
+- keep the reason concrete and user-facing
 - do not mention policy, scoring, or internal rules
 - if the draft is already good, keep changes minimal
 - if the draft is risky, lower defensiveness, remove unnecessary heat, and preserve meaning

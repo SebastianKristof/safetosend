@@ -21,7 +21,7 @@ export const transformChangeSchema = z.object({
 export const analysisResponseSchema = z.object({
   verdict: verdictSchema,
   riskLevel: riskLevelSchema,
-  reasons: z.array(z.string().min(1)).min(1).max(3),
+  reason: z.string().min(1),
   highlights: z.array(analysisHighlightSchema).max(5),
   suggestedText: z.string().min(1),
   inferredGoal: z.string().min(1),
@@ -46,7 +46,7 @@ export const assistantRequestSchema = z.object({
   analysisContext: z
     .object({
       verdict: verdictSchema.optional(),
-      reasons: z.array(z.string()).optional(),
+      reason: z.string().optional(),
       inferredGoal: z.string().optional(),
     })
     .optional(),

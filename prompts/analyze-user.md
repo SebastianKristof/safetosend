@@ -11,7 +11,7 @@ Draft:
 Return:
  - verdict: one of Safe to send / Risky - revise / Do not send yet
 - riskLevel: low / medium / high
-- reasons: 1 to 3 short reasons in the interface language
+- reason: one short explanation in the interface language, covering the main issue or why it is safe
 - highlights: 0 to 5 exact quoted draft fragments with severity yellow or red and short reasons in the interface language
 - suggestedText: the safest clear rewrite that preserves intent and keeps the draft text in English
 - inferredGoal: a short phrase describing the likely intent in the interface language

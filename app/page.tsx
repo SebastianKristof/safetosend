@@ -27,7 +27,7 @@ const UI_COPY = {
       resultsPlaceholder: 'Results appear here after you check or rewrite the message.',
       likelyIntent: 'Likely intent',
       confidence: 'Confidence',
-      reasons: 'Reasons',
+      reasons: 'Reason',
       changes: 'What changed',
       history: 'Recent history',
       current: 'Current',
@@ -140,7 +140,7 @@ const UI_COPY = {
       resultsPlaceholder: 'Результат появится после проверки или правки сообщения.',
       likelyIntent: 'Вероятная цель',
       confidence: 'Уверенность',
-      reasons: 'Причины',
+      reasons: 'Причина',
       changes: 'Что изменилось',
       history: 'Последние версии',
       current: 'Текущая',
@@ -253,7 +253,7 @@ const UI_COPY = {
       resultsPlaceholder: 'Los resultados aparecen aqui despues de revisar o reescribir el mensaje.',
       likelyIntent: 'Intencion probable',
       confidence: 'Confianza',
-      reasons: 'Motivos',
+      reasons: 'Motivo',
       changes: 'Que cambio',
       history: 'Historial reciente',
       current: 'Actual',
@@ -366,7 +366,7 @@ const UI_COPY = {
       resultsPlaceholder: 'Die Ergebnisse erscheinen hier nach der Pruefung oder Ueberarbeitung der Nachricht.',
       likelyIntent: 'Wahrscheinliche Absicht',
       confidence: 'Sicherheit',
-      reasons: 'Gruende',
+      reasons: 'Grund',
       changes: 'Was sich geaendert hat',
       history: 'Letzte Versionen',
       current: 'Aktuell',
@@ -479,7 +479,7 @@ const UI_COPY = {
       resultsPlaceholder: 'Les resultats apparaissent ici apres la verification ou la reecriture du message.',
       likelyIntent: 'Intention probable',
       confidence: 'Confiance',
-      reasons: 'Raisons',
+      reasons: 'Raison',
       changes: 'Ce qui a change',
       history: 'Historique recent',
       current: 'Actuel',
@@ -673,7 +673,7 @@ function buildAnalysisContextPayload(analysis: AnalysisResponse | null) {
 
   return {
     verdict: verdictIsCurrent ? verdict : undefined,
-    reasons: analysis.reasons,
+    reason: analysis.reason,
     inferredGoal: analysis.inferredGoal,
   }
 }
@@ -1051,15 +1051,6 @@ export default function Page() {
       changes: lastChanges,
     }
   }
-
-  const recentHistory = [...past, currentSnapshot()]
-    .slice(-3)
-    .reverse()
-    .map((snapshot, index) => ({
-      ...snapshot,
-      isCurrent: index === 0,
-      preview: snapshot.draft.trim() || copy.status.startDraft,
-    }))
 
   function checkpoint(note: string) {
     setPast((existing) => [...existing, currentSnapshot(note)])
@@ -1495,61 +1486,10 @@ export default function Page() {
           {analysis ? (
             <div className="analysis-reasons">
               <p className="analysis-reasons-label">{copy.panel.reasons}</p>
-              <ul className="reason-list">
-                {analysis.reasons.map((reason) => (
-                  <li key={reason}>{reason}</li>
-                ))}
-              </ul>
+              <p className="reason-text">{analysis.reason}</p>
             </div>
           ) : null}
         </section>
-
-        {past.length || lastChanges.length || future.length ? (
-          <section className="analysis-card version-card" aria-live="polite">
-            <div className="analysis-topline">
-              <span className="verdict-pill neutral">
-                {copy.changes.title}
-              </span>
-            </div>
-            <div className="history-list">
-              {recentHistory.map((entry) => (
-                <article
-                  key={`${entry.version}-${entry.note}-${entry.preview}`}
-                  className={`history-entry ${entry.isCurrent ? 'current' : ''}`}
-                >
-                  <div className="history-entry-topline">
-                    <span className="history-entry-version">
-                      v{entry.version} {entry.isCurrent ? `· ${copy.panel.current}` : ''}
-                    </span>
-                    <span className="history-entry-note">{entry.note || copy.panel.ready}</span>
-                  </div>
-                  {entry.changes.length ? (
-                    <ul className="change-list">
-                      {entry.changes.map((change, index) => (
-                        <li key={`${entry.version}-${change.summary}-${index}`} className="change-item">
-                          <p className="change-summary">{change.summary}</p>
-                          <div className="change-span-row">
-                            <span className="change-chip change-from">
-                              <span className="change-chip-label">{copy.changes.from}</span>
-                              <span>{change.before || '—'}</span>
-                            </span>
-                            <span className="change-arrow">→</span>
-                            <span className="change-chip change-to">
-                              <span className="change-chip-label">{copy.changes.to}</span>
-                              <span>{change.after || '—'}</span>
-                            </span>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="history-entry-preview">{entry.preview}</p>
-                  )}
-                </article>
-              ))}
-            </div>
-          </section>
-        ) : null}
 
       </section>
     </main>
