@@ -586,7 +586,7 @@ type Copy = (typeof UI_COPY)[Locale]
 
 type PersistedState = {
   workingText: string
-  audience: Audience | 'other'
+  audience: string
   voiceCommand: string
   locale?: Locale
   version?: number
@@ -676,6 +676,12 @@ function buildAudienceOptions(copy: Copy): Array<{ value: Audience; label: strin
     { value: 'partner', label: copy.audiences.partner.label, helper: copy.audiences.partner.helper },
     { value: 'general', label: copy.audiences.general.label, helper: copy.audiences.general.helper },
   ]
+}
+
+const AUDIENCE_VALUES = new Set<Audience>(['boss', 'client', 'colleague', 'partner', 'general'])
+
+function normalizeAudience(value: string | null | undefined): Audience {
+  return value && AUDIENCE_VALUES.has(value as Audience) ? (value as Audience) : 'general'
 }
 
 const DEFAULT_REWRITE_INSTRUCTION: Record<Locale, string> = {
@@ -1238,11 +1244,8 @@ export default function Page() {
       )
 
     if (persisted) {
-      const persistedAudience =
-        persisted.audience === 'other' ? 'general' : (persisted.audience as Audience)
-
       setWorkingText(persisted.workingText)
-      setAudience(persistedAudience)
+      setAudience(normalizeAudience(persisted.audience))
       setVoiceCommand(persisted.voiceCommand || '')
       setLocale(nextLocale)
       setVersion(Math.max(1, persistedVersion || 0))
