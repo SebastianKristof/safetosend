@@ -486,6 +486,53 @@ h2 {
   gap: 6px;
 }
 
+.voice-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 12px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.2;
+}
+
+.voice-status-label {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.voice-level-wrap {
+  flex: 1;
+  min-width: 0;
+  height: 5px;
+  border-radius: 999px;
+  background: #ebe6dc;
+  overflow: hidden;
+}
+
+.voice-level-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #88b0ff, #4e80e8);
+  transition: width 120ms linear;
+}
+
+.voice-spinner {
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: voice-spin 700ms linear infinite;
+}
+
+.mic-button {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .icon-button {
   width: 2.5rem;
   height: 2.5rem;
@@ -617,6 +664,16 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+@keyframes voice-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 760px) {
