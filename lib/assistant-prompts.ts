@@ -42,9 +42,9 @@ export async function getPromptBundle() {
       readPrompt('prompts/audiences/client.md'),
       readPrompt('prompts/audiences/colleague.md'),
       readPrompt('prompts/audiences/partner.md'),
-      readPrompt('prompts/audiences/other.md'),
+      readPrompt('prompts/audiences/general.md'),
     ]).then(
-      ([analyzeSystem, analyzeUser, editUser, boss, client, colleague, partner, other]) =>
+      ([analyzeSystem, analyzeUser, editUser, boss, client, colleague, partner, general]) =>
         ({
           analyzeSystem,
           analyzeUser,
@@ -54,7 +54,7 @@ export async function getPromptBundle() {
             client,
             colleague,
             partner,
-            other,
+            general,
           },
         }) satisfies PromptBundle,
     )

@@ -99,7 +99,7 @@ const UI_COPY = {
       client: { label: 'Client', helper: 'Polished, careful, confident' },
       colleague: { label: 'Colleague', helper: 'Direct and collaborative' },
       partner: { label: 'Partner', helper: 'Warm and non-defensive' },
-      other: { label: 'Other', helper: 'Neutral and adaptive' },
+      general: { label: 'General', helper: 'Neutral and adaptive' },
     },
     analysis: {
       likelyIntent: 'Likely intent',
@@ -210,7 +210,7 @@ const UI_COPY = {
       client: { label: 'Клиент', helper: 'Аккуратно, уверенно, вежливо' },
       colleague: { label: 'Коллега', helper: 'Прямо и по делу' },
       partner: { label: 'Партнёр', helper: 'Тепло и без защиты' },
-      other: { label: 'Другое', helper: 'Нейтрально и гибко' },
+      general: { label: 'Общее', helper: 'Нейтрально и гибко' },
     },
     analysis: {
       likelyIntent: 'Вероятная цель',
@@ -321,7 +321,7 @@ const UI_COPY = {
       client: { label: 'Cliente', helper: 'Pulido, cuidadoso, seguro' },
       colleague: { label: 'Colega', helper: 'Directo y colaborativo' },
       partner: { label: 'Pareja', helper: 'Calido y sin defensiva' },
-      other: { label: 'Otro', helper: 'Neutral y adaptable' },
+      general: { label: 'General', helper: 'Neutral y adaptable' },
     },
     analysis: {
       likelyIntent: 'Intencion probable',
@@ -432,7 +432,7 @@ const UI_COPY = {
       client: { label: 'Kunde', helper: 'Sauber, vorsichtig, selbstsicher' },
       colleague: { label: 'Kollege', helper: 'Direkt und kooperativ' },
       partner: { label: 'Partner', helper: 'Warm und nicht defensiv' },
-      other: { label: 'Andere', helper: 'Neutral und anpassungsfaehig' },
+      general: { label: 'Allgemein', helper: 'Neutral und anpassungsfaehig' },
     },
     analysis: {
       likelyIntent: 'Wahrscheinliche Absicht',
@@ -543,7 +543,7 @@ const UI_COPY = {
       client: { label: 'Client', helper: 'Soigne, prudent, confiant' },
       colleague: { label: 'Collegue', helper: 'Direct et collaboratif' },
       partner: { label: 'Partenaire', helper: 'Chaleureux et non defensif' },
-      other: { label: 'Autre', helper: 'Neutre et adaptable' },
+      general: { label: 'Général', helper: 'Neutre et adaptable' },
     },
     analysis: {
       likelyIntent: 'Intention probable',
@@ -586,7 +586,7 @@ type Copy = (typeof UI_COPY)[Locale]
 
 type PersistedState = {
   workingText: string
-  audience: Audience
+  audience: Audience | 'other'
   voiceCommand: string
   locale?: Locale
   version?: number
@@ -674,7 +674,7 @@ function buildAudienceOptions(copy: Copy): Array<{ value: Audience; label: strin
     { value: 'client', label: copy.audiences.client.label, helper: copy.audiences.client.helper },
     { value: 'colleague', label: copy.audiences.colleague.label, helper: copy.audiences.colleague.helper },
     { value: 'partner', label: copy.audiences.partner.label, helper: copy.audiences.partner.helper },
-    { value: 'other', label: copy.audiences.other.label, helper: copy.audiences.other.helper },
+    { value: 'general', label: copy.audiences.general.label, helper: copy.audiences.general.helper },
   ]
 }
 
@@ -1182,7 +1182,7 @@ async function postAssistant<T>(body: Record<string, unknown>, fallbackError: st
 
 export default function Page() {
   const [workingText, setWorkingText] = useState('')
-  const [audience, setAudience] = useState<Audience>('other')
+  const [audience, setAudience] = useState<Audience>('general')
   const [voiceCommand, setVoiceCommand] = useState('')
   const [locale, setLocale] = useState<Locale>('en')
   const [version, setVersion] = useState(1)
@@ -1238,8 +1238,11 @@ export default function Page() {
       )
 
     if (persisted) {
+      const persistedAudience =
+        persisted.audience === 'other' ? 'general' : (persisted.audience as Audience)
+
       setWorkingText(persisted.workingText)
-      setAudience(persisted.audience)
+      setAudience(persistedAudience)
       setVoiceCommand(persisted.voiceCommand || '')
       setLocale(nextLocale)
       setVersion(Math.max(1, persistedVersion || 0))

@@ -1,4 +1,4 @@
-Use this guidance when the recipient does not fit the other categories or the relationship is unclear.
+Use this guidance when the recipient does not fit the more specific categories or the relationship is unclear.
 
 - Use neutral, respectful, low-friction language.
 - When in doubt, prefer broadly professional wording that is safe across contexts.
