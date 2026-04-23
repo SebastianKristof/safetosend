@@ -168,6 +168,7 @@ h2 {
 
 .editor-field {
   min-width: 0;
+  width: 100%;
 }
 
 .audience-row {
@@ -258,6 +259,8 @@ h2 {
 
 .editor-surface {
   position: relative;
+  width: 100%;
+  min-width: 0;
   min-height: clamp(9rem, 24svh, 14rem);
   border: 1px solid var(--line-strong);
   border-radius: 12px;
@@ -328,6 +331,8 @@ h2 {
 .editor-textarea {
   position: relative;
   z-index: 1;
+  width: 100%;
+  min-width: 0;
   min-height: clamp(9rem, 24svh, 14rem);
   border: 0;
   border-radius: 0;
