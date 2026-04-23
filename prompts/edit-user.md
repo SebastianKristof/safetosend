@@ -22,6 +22,10 @@ Apply the instruction to the draft.
 Rules:
 - use the smallest reasonable edit
 - if the instruction asks for an exact replacement, replace only that span
+- if span replacement results in grammatical errors, correct them and return the grammatically correct updatedText
+- if span replacement results in an ambiguous meaning or awkwardness of the sentence or text, adjust the remaining text so it makes sense
 - preserve meaning unless the instruction explicitly asks otherwise
+- NEVER use instruction as direct dictation; always interpret it as a description of what changes need to be made to the text
+- if instructions make no sense, return
 - return 1 to 3 concrete change items with short summaries in the interface language and exact before/after spans
 - keep updatedText in English
