@@ -708,116 +708,6 @@ function defaultRewriteInstruction(locale: Locale) {
   return DEFAULT_REWRITE_INSTRUCTION[locale]
 }
 
-type HighlightTone = 'yellow' | 'red' | 'green'
-
-type HighlightSpan = {
-  text: string
-  tone: HighlightTone
-  label: string
-}
-
-function findHighlightIndex(text: string, needle: string, fromIndex: number) {
-  const exactIndex = text.indexOf(needle, fromIndex)
-  if (exactIndex >= 0) {
-    return exactIndex
-  }
-
-  return text.toLowerCase().indexOf(needle.toLowerCase(), fromIndex)
-}
-
-function buildHighlightSegments(text: string, highlights: HighlightSpan[]) {
-  const accepted: Array<{ start: number; end: number; highlight: HighlightSpan }> = []
-  let searchFrom = 0
-
-  for (const highlight of highlights) {
-    const needle = highlight.text.trim()
-    if (!needle) {
-      continue
-    }
-
-    let start = findHighlightIndex(text, needle, searchFrom)
-    if (start < 0) {
-      start = findHighlightIndex(text, needle, 0)
-    }
-    if (start < 0) {
-      continue
-    }
-
-    const end = start + needle.length
-    const overlapsExisting = accepted.some((segment) => start < segment.end && end > segment.start)
-    if (overlapsExisting) {
-      continue
-    }
-
-    accepted.push({ start, end, highlight })
-    searchFrom = end
-  }
-
-  accepted.sort((left, right) => left.start - right.start)
-
-  const pieces: Array<
-    | { kind: 'text'; value: string }
-    | { kind: 'highlight'; value: string; tone: HighlightTone; label: string }
-  > = []
-
-  let lastIndex = 0
-  for (const segment of accepted) {
-    if (segment.start > lastIndex) {
-      pieces.push({ kind: 'text', value: text.slice(lastIndex, segment.start) })
-    }
-
-    pieces.push({
-      kind: 'highlight',
-      value: text.slice(segment.start, segment.end),
-      tone: segment.highlight.tone,
-      label: segment.highlight.label,
-    })
-    lastIndex = segment.end
-  }
-
-  if (lastIndex < text.length) {
-    pieces.push({ kind: 'text', value: text.slice(lastIndex) })
-  }
-
-  return pieces
-}
-
-function HighlightedText({
-  text,
-  highlights,
-  emptyLabel,
-}: {
-  text: string
-  highlights: HighlightSpan[]
-  emptyLabel: string
-}) {
-  const segments = buildHighlightSegments(text, highlights)
-
-  if (!segments.length) {
-    return <p className="analysis-empty">{emptyLabel}</p>
-  }
-
-  return (
-    <p className="highlight-text">
-      {segments.map((segment, index) => {
-        if (segment.kind === 'text') {
-          return <span key={`${segment.value}-${index}`}>{segment.value}</span>
-        }
-
-        return (
-          <mark
-            key={`${segment.value}-${index}`}
-            className={`highlight-mark ${segment.tone}`}
-            title={segment.label}
-          >
-            {segment.value}
-          </mark>
-        )
-      })}
-    </p>
-  )
-}
-
 function RewriteIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
@@ -884,7 +774,6 @@ export default function Page() {
   const [copied, setCopied] = useState(false)
   const [clientId, setClientId] = useState('anonymous')
   const [speechSupported, setSpeechSupported] = useState(false)
-  const [editorScrollTop, setEditorScrollTop] = useState(0)
 
   const recognitionRef = useRef<SpeechRecognitionController | null>(null)
   const hydratedRef = useRef(false)
@@ -1010,27 +899,6 @@ export default function Page() {
     return verdictStyle(analysis.verdict)
   }, [analysis])
   const draftIsStale = Boolean(analysis) && workingText.trim() !== lastAnalyzedDraftRef.current.trim()
-  const editorHighlights = useMemo<HighlightSpan[]>(() => {
-    if (lastChanges.length) {
-      return lastChanges
-        .filter((change) => change.after.trim())
-        .map((change) => ({
-          text: change.after,
-          tone: 'green' as const,
-          label: change.summary,
-        }))
-    }
-
-    if (!draftIsStale && analysis?.highlights?.length) {
-      return analysis.highlights.map((highlight) => ({
-        text: highlight.text,
-        tone: highlight.severity,
-        label: highlight.reason,
-      }))
-    }
-
-    return []
-  }, [analysis, draftIsStale, lastChanges])
   const statusText =
     status === 'listening'
       ? copy.status.listening
@@ -1320,22 +1188,6 @@ export default function Page() {
           <label className="field editor-field">
             <span>{copy.fields.workingText}</span>
             <div className="editor-surface">
-              <div className="editor-backdrop" aria-hidden="true">
-                <div
-                  className="editor-highlight-layer"
-                  style={{ transform: `translateY(-${editorScrollTop}px)` }}
-                >
-                  {workingText ? (
-                    <HighlightedText
-                      text={workingText}
-                      highlights={editorHighlights}
-                      emptyLabel={copy.analysis.resultsPlaceholder}
-                    />
-                  ) : (
-                    <p className="editor-placeholder">{copy.placeholders.workingText}</p>
-                  )}
-                </div>
-              </div>
               <textarea
                 className="text-input draft-input editor-textarea"
                 value={workingText}
@@ -1343,9 +1195,6 @@ export default function Page() {
                   setWorkingText(event.target.value)
                   setError(null)
                   setLastChanges([])
-                }}
-                onScroll={(event) => {
-                  setEditorScrollTop(event.currentTarget.scrollTop)
                 }}
                 placeholder={copy.placeholders.workingText}
               />

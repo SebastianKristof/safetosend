@@ -193,18 +193,6 @@ h2 {
     0 0 0 3px rgba(109, 141, 184, 0.1);
 }
 
-.editor-backdrop {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.editor-highlight-layer {
-  min-height: 100%;
-  color: var(--text);
-}
-
 .history-rail {
   display: grid;
   gap: 6px;
@@ -264,19 +252,15 @@ h2 {
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: transparent;
+  color: var(--text);
   caret-color: var(--text);
-  -webkit-text-fill-color: transparent;
-}
-
-.editor-highlight-layer,
-.editor-textarea {
   padding: var(--editor-pad-y) var(--editor-pad-x);
   font-family: inherit;
   font-size: var(--editor-font-size);
   font-weight: 400;
   letter-spacing: normal;
   line-height: var(--editor-line-height);
+  resize: vertical;
 }
 
 .editor-textarea:focus {
@@ -285,8 +269,7 @@ h2 {
 }
 
 .editor-textarea::placeholder {
-  color: transparent;
-  text-shadow: none;
+  color: var(--soft);
 }
 
 .editor-placeholder {
@@ -519,41 +502,6 @@ h2 {
   line-height: 1.5;
 }
 
-.analysis-empty {
-  color: var(--muted);
-  font-size: 0.94rem;
-  line-height: 1.5;
-}
-
-.highlight-text {
-  margin: 0;
-  color: var(--text);
-  line-height: 1.5;
-  font-size: 0.94rem;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  min-height: 100%;
-}
-
-.highlight-mark {
-  padding: 0 3px;
-  border-radius: 4px;
-  color: inherit;
-  background: transparent;
-}
-
-.highlight-mark.yellow {
-  background: #f6ecbf;
-}
-
-.highlight-mark.red {
-  background: #f5d9db;
-}
-
-.highlight-mark.green {
-  background: #dff0e3;
-}
-
 .advanced-body {
   display: grid;
   gap: 12px;
@@ -718,14 +666,6 @@ h2 {
   .editor-surface,
   .editor-textarea {
     min-height: clamp(7.4rem, 21svh, 9rem);
-  }
-
-  .editor-highlight-layer,
-  .editor-textarea {
-    --editor-font-size: 14px;
-    --editor-line-height: 20px;
-    --editor-pad-y: 8px;
-    --editor-pad-x: 9px;
   }
 }
 
