@@ -1,17 +1,28 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type FormEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import type {
   AnalysisResponse,
   Audience,
+  EditChange,
+  EditResponse,
   Locale,
-  TransformChange,
-  TransformResponse,
   Verdict,
 } from '@/lib/assistant-contracts'
 import type { DraftSnapshot } from '@/lib/assistant-client'
+import { useAudioRecorder } from '@/hooks/use-audio-recorder'
 
-const STORAGE_KEY = 'safetosend.app.state.v3'
+const STORAGE_KEY = 'safetosend.app.state.v4'
 
 const UI_COPY = {
   en: {
@@ -26,7 +37,6 @@ const UI_COPY = {
       ready: 'Ready',
       resultsPlaceholder: 'Results appear here after you check or rewrite the message.',
       likelyIntent: 'Likely intent',
-      confidence: 'Confidence',
       reasons: 'Reason',
       changes: 'What changed',
       history: 'Recent history',
@@ -52,21 +62,22 @@ const UI_COPY = {
       checking: 'Checking...',
       submit: 'Rewrite',
       submitting: 'Rewriting...',
-      mic: 'Mic',
-      stopMic: 'Stop mic',
+      mic: 'Hold to speak',
+      stopMic: 'Stop recording',
     },
     status: {
       idle: 'Ready',
       analyzing: 'Checking',
       rewriting: 'Rewriting',
       listening: 'Listening',
+      transcribing: 'Transcribing',
       draftChanged: 'Draft changed',
       startDraft: 'Paste, type, or write a draft.',
       beforeCheck: 'Before check',
       beforePaste: 'Before paste',
       beforeRewrite: 'Before rewrite',
       clipboardPasted: 'Clipboard pasted',
-      voiceCommandCaptured: 'Voice command captured',
+      voiceCommandCaptured: 'Voice instruction captured',
       draftCopied: 'Draft copied',
       analysisUpdated: 'Analysis updated',
       requestFailed: 'AI request failed.',
@@ -88,11 +99,11 @@ const UI_COPY = {
       client: { label: 'Client', helper: 'Polished, careful, confident' },
       colleague: { label: 'Colleague', helper: 'Direct and collaborative' },
       partner: { label: 'Partner', helper: 'Warm and non-defensive' },
-      other: { label: 'Other', helper: 'Neutral and adaptive' },
+      general: { label: 'General', helper: 'Neutral and adaptive' },
     },
     analysis: {
       likelyIntent: 'Likely intent',
-      confidence: 'Confidence',
+      tone: 'Recommended tone',
       resultsPlaceholder: 'Results appear here after you check or rewrite the message.',
       analysisHighlights: 'Questionable parts',
       rewriteHighlights: 'Rewritten parts',
@@ -120,9 +131,9 @@ const UI_COPY = {
       clipboardEmpty: 'Clipboard is empty.',
       copyFailed: 'Copy failed.',
       pasteFailed: 'Paste failed.',
-      dictationUnsupported: 'Speech recognition is not available in this browser.',
-      dictationFailed: 'Dictation failed',
-      couldNotStart: 'Could not start voice capture.',
+      dictationUnsupported: 'Voice capture is not available in this browser.',
+      dictationFailed: 'Voice capture failed',
+      couldNotStart: 'Could not start recording.',
     },
   },
   ru: {
@@ -137,7 +148,6 @@ const UI_COPY = {
       ready: 'Готово',
       resultsPlaceholder: 'Результат появится после проверки или правки сообщения.',
       likelyIntent: 'Вероятная цель',
-      confidence: 'Уверенность',
       reasons: 'Причина',
       changes: 'Что изменилось',
       history: 'Последние версии',
@@ -163,21 +173,22 @@ const UI_COPY = {
       checking: 'Проверяем...',
       submit: 'Переписать',
       submitting: 'Переписываем...',
-      mic: 'Микрофон',
-      stopMic: 'Стоп',
+      mic: 'Говорить',
+      stopMic: 'Стоп запись',
     },
     status: {
       idle: 'Готово',
       analyzing: 'Проверяем',
       rewriting: 'Правим',
       listening: 'Слушаю',
+      transcribing: 'Распознаю',
       draftChanged: 'Черновик изменён',
       startDraft: 'Вставьте, напечатайте или напишите черновик.',
       beforeCheck: 'Перед проверкой',
       beforePaste: 'Перед вставкой',
       beforeRewrite: 'Перед переписыванием',
       clipboardPasted: 'Текст вставлен',
-      voiceCommandCaptured: 'Голосовая команда распознана',
+      voiceCommandCaptured: 'Голосовая инструкция распознана',
       draftCopied: 'Текст скопирован',
       analysisUpdated: 'Проверка обновлена',
       requestFailed: 'Запрос к ИИ не удался.',
@@ -199,11 +210,11 @@ const UI_COPY = {
       client: { label: 'Клиент', helper: 'Аккуратно, уверенно, вежливо' },
       colleague: { label: 'Коллега', helper: 'Прямо и по делу' },
       partner: { label: 'Партнёр', helper: 'Тепло и без защиты' },
-      other: { label: 'Другое', helper: 'Нейтрально и гибко' },
+      general: { label: 'Общее', helper: 'Нейтрально и гибко' },
     },
     analysis: {
       likelyIntent: 'Вероятная цель',
-      confidence: 'Уверенность',
+      tone: 'Рекомендуемый тон',
       resultsPlaceholder: 'Результат появится после проверки или правки сообщения.',
       analysisHighlights: 'Проблемные места',
       rewriteHighlights: 'Переписанные фрагменты',
@@ -231,9 +242,9 @@ const UI_COPY = {
       clipboardEmpty: 'Буфер обмена пуст.',
       copyFailed: 'Не удалось скопировать текст.',
       pasteFailed: 'Не удалось вставить текст.',
-      dictationUnsupported: 'Распознавание речи недоступно в этом браузере.',
-      dictationFailed: 'Не удалось распознать речь',
-      couldNotStart: 'Не удалось запустить запись голоса.',
+      dictationUnsupported: 'Голосовая запись недоступна в этом браузере.',
+      dictationFailed: 'Не удалось распознать голос',
+      couldNotStart: 'Не удалось начать запись.',
     },
   },
   es: {
@@ -248,7 +259,6 @@ const UI_COPY = {
       ready: 'Listo',
       resultsPlaceholder: 'Los resultados aparecen aqui despues de revisar o reescribir el mensaje.',
       likelyIntent: 'Intencion probable',
-      confidence: 'Confianza',
       reasons: 'Motivo',
       changes: 'Que cambio',
       history: 'Historial reciente',
@@ -274,21 +284,22 @@ const UI_COPY = {
       checking: 'Revisando...',
       submit: 'Reescribir',
       submitting: 'Reescribiendo...',
-      mic: 'Microfono',
-      stopMic: 'Detener',
+      mic: 'Mantener para hablar',
+      stopMic: 'Detener grabacion',
     },
     status: {
       idle: 'Listo',
       analyzing: 'Revisando',
       rewriting: 'Reescribiendo',
       listening: 'Escuchando',
+      transcribing: 'Transcribiendo',
       draftChanged: 'El borrador cambio',
       startDraft: 'Pega, escribe o dicta un borrador.',
       beforeCheck: 'Antes de revisar',
       beforePaste: 'Antes de pegar',
       beforeRewrite: 'Antes de reescribir',
       clipboardPasted: 'Texto pegado',
-      voiceCommandCaptured: 'Comando de voz capturado',
+      voiceCommandCaptured: 'Instruccion de voz capturada',
       draftCopied: 'Texto copiado',
       analysisUpdated: 'Analisis actualizado',
       requestFailed: 'La solicitud a la IA fallo.',
@@ -310,11 +321,11 @@ const UI_COPY = {
       client: { label: 'Cliente', helper: 'Pulido, cuidadoso, seguro' },
       colleague: { label: 'Colega', helper: 'Directo y colaborativo' },
       partner: { label: 'Pareja', helper: 'Calido y sin defensiva' },
-      other: { label: 'Otro', helper: 'Neutral y adaptable' },
+      general: { label: 'General', helper: 'Neutral y adaptable' },
     },
     analysis: {
       likelyIntent: 'Intencion probable',
-      confidence: 'Confianza',
+      tone: 'Tono recomendado',
       resultsPlaceholder: 'Los resultados aparecen aqui despues de revisar o reescribir el mensaje.',
       analysisHighlights: 'Partes cuestionables',
       rewriteHighlights: 'Partes reescritas',
@@ -342,9 +353,9 @@ const UI_COPY = {
       clipboardEmpty: 'El portapapeles esta vacio.',
       copyFailed: 'No se pudo copiar el texto.',
       pasteFailed: 'No se pudo pegar el texto.',
-      dictationUnsupported: 'El reconocimiento de voz no esta disponible en este navegador.',
-      dictationFailed: 'El dictado fallo',
-      couldNotStart: 'No se pudo iniciar la captura de voz.',
+      dictationUnsupported: 'La captura de voz no esta disponible en este navegador.',
+      dictationFailed: 'La captura de voz fallo',
+      couldNotStart: 'No se pudo iniciar la grabacion.',
     },
   },
   de: {
@@ -359,7 +370,6 @@ const UI_COPY = {
       ready: 'Bereit',
       resultsPlaceholder: 'Die Ergebnisse erscheinen hier nach der Pruefung oder Ueberarbeitung der Nachricht.',
       likelyIntent: 'Wahrscheinliche Absicht',
-      confidence: 'Sicherheit',
       reasons: 'Grund',
       changes: 'Was sich geaendert hat',
       history: 'Letzte Versionen',
@@ -385,21 +395,22 @@ const UI_COPY = {
       checking: 'Wird geprueft...',
       submit: 'Ueberarbeiten',
       submitting: 'Wird ueberarbeitet...',
-      mic: 'Mikrofon',
-      stopMic: 'Stopp',
+      mic: 'Gedrueckt halten',
+      stopMic: 'Aufnahme stoppen',
     },
     status: {
       idle: 'Bereit',
       analyzing: 'Prueft',
       rewriting: 'Ueberarbeitet',
       listening: 'Hoert zu',
+      transcribing: 'Transkribiere',
       draftChanged: 'Entwurf geaendert',
       startDraft: 'Fuege einen Entwurf ein, schreibe oder diktiere ihn.',
       beforeCheck: 'Vor der Pruefung',
       beforePaste: 'Vor dem Einfuegen',
       beforeRewrite: 'Vor der Ueberarbeitung',
       clipboardPasted: 'Text eingefuegt',
-      voiceCommandCaptured: 'Sprachbefehl erfasst',
+      voiceCommandCaptured: 'Sprachanweisung erfasst',
       draftCopied: 'Text kopiert',
       analysisUpdated: 'Analyse aktualisiert',
       requestFailed: 'Die KI-Anfrage ist fehlgeschlagen.',
@@ -421,11 +432,11 @@ const UI_COPY = {
       client: { label: 'Kunde', helper: 'Sauber, vorsichtig, selbstsicher' },
       colleague: { label: 'Kollege', helper: 'Direkt und kooperativ' },
       partner: { label: 'Partner', helper: 'Warm und nicht defensiv' },
-      other: { label: 'Andere', helper: 'Neutral und anpassungsfaehig' },
+      general: { label: 'Allgemein', helper: 'Neutral und anpassungsfaehig' },
     },
     analysis: {
       likelyIntent: 'Wahrscheinliche Absicht',
-      confidence: 'Sicherheit',
+      tone: 'Empfohlener Ton',
       resultsPlaceholder: 'Die Ergebnisse erscheinen hier nach der Pruefung oder Ueberarbeitung der Nachricht.',
       analysisHighlights: 'Fragliche Stellen',
       rewriteHighlights: 'Ueberarbeitete Stellen',
@@ -453,9 +464,9 @@ const UI_COPY = {
       clipboardEmpty: 'Die Zwischenablage ist leer.',
       copyFailed: 'Der Text konnte nicht kopiert werden.',
       pasteFailed: 'Der Text konnte nicht eingefuegt werden.',
-      dictationUnsupported: 'Spracherkennung ist in diesem Browser nicht verfuegbar.',
-      dictationFailed: 'Diktat fehlgeschlagen',
-      couldNotStart: 'Die Sprachaufnahme konnte nicht gestartet werden.',
+      dictationUnsupported: 'Sprachaufnahme ist in diesem Browser nicht verfuegbar.',
+      dictationFailed: 'Sprachaufnahme fehlgeschlagen',
+      couldNotStart: 'Aufnahme konnte nicht gestartet werden.',
     },
   },
   fr: {
@@ -470,7 +481,6 @@ const UI_COPY = {
       ready: 'Pret',
       resultsPlaceholder: 'Les resultats apparaissent ici apres la verification ou la reecriture du message.',
       likelyIntent: 'Intention probable',
-      confidence: 'Confiance',
       reasons: 'Raison',
       changes: 'Ce qui a change',
       history: 'Historique recent',
@@ -496,21 +506,22 @@ const UI_COPY = {
       checking: 'Verification...',
       submit: 'Reecrire',
       submitting: 'Reecriture...',
-      mic: 'Micro',
-      stopMic: 'Arreter',
+      mic: 'Maintenir pour parler',
+      stopMic: 'Arreter l enregistrement',
     },
     status: {
       idle: 'Pret',
       analyzing: 'Verification',
       rewriting: 'Reecriture',
       listening: 'Ecoute',
+      transcribing: 'Transcription',
       draftChanged: 'Brouillon modifie',
       startDraft: 'Colle, saisis ou dicte un brouillon.',
       beforeCheck: 'Avant verification',
       beforePaste: 'Avant collage',
       beforeRewrite: 'Avant reecriture',
       clipboardPasted: 'Texte colle',
-      voiceCommandCaptured: 'Commande vocale capturee',
+      voiceCommandCaptured: 'Instruction vocale capturee',
       draftCopied: 'Texte copie',
       analysisUpdated: 'Analyse mise a jour',
       requestFailed: "La requete a l'IA a echoue.",
@@ -532,11 +543,11 @@ const UI_COPY = {
       client: { label: 'Client', helper: 'Soigne, prudent, confiant' },
       colleague: { label: 'Collegue', helper: 'Direct et collaboratif' },
       partner: { label: 'Partenaire', helper: 'Chaleureux et non defensif' },
-      other: { label: 'Autre', helper: 'Neutre et adaptable' },
+      general: { label: 'Général', helper: 'Neutre et adaptable' },
     },
     analysis: {
       likelyIntent: 'Intention probable',
-      confidence: 'Confiance',
+      tone: 'Tonalite recommandee',
       resultsPlaceholder: 'Les resultats apparaissent ici apres la verification ou la reecriture du message.',
       analysisHighlights: 'Passages delicats',
       rewriteHighlights: 'Passages reecrits',
@@ -564,9 +575,9 @@ const UI_COPY = {
       clipboardEmpty: 'Le presse-papiers est vide.',
       copyFailed: 'Impossible de copier le texte.',
       pasteFailed: 'Impossible de coller le texte.',
-      dictationUnsupported: "La reconnaissance vocale n'est pas disponible dans ce navigateur.",
-      dictationFailed: 'La dictee a echoue',
-      couldNotStart: "Impossible de demarrer la capture vocale.",
+      dictationUnsupported: "La capture vocale n'est pas disponible dans ce navigateur.",
+      dictationFailed: 'La capture vocale a echoue',
+      couldNotStart: "Impossible de demarrer l enregistrement.",
     },
   },
 } as const
@@ -575,7 +586,7 @@ type Copy = (typeof UI_COPY)[Locale]
 
 type PersistedState = {
   workingText: string
-  audience: Audience
+  audience: string
   voiceCommand: string
   locale?: Locale
   version?: number
@@ -583,19 +594,8 @@ type PersistedState = {
   past: DraftSnapshot[]
   future: DraftSnapshot[]
   lastChangeNote: string
-  lastChanges?: TransformChange[]
+  lastChanges?: EditChange[]
   clientId: string
-}
-
-type SpeechRecognitionController = {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  onresult: ((event: any) => void) | null
-  onerror: ((event: any) => void) | null
-  onend: (() => void) | null
-  start: () => void
-  stop: () => void
 }
 
 function loadPersistedState(): PersistedState | null {
@@ -664,6 +664,7 @@ function buildAnalysisContextPayload(analysis: AnalysisResponse | null) {
     verdict: verdictIsCurrent ? verdict : undefined,
     reason: analysis.reason,
     inferredGoal: analysis.inferredGoal,
+    recommendedTone: analysis.recommendedTone,
   }
 }
 
@@ -673,8 +674,14 @@ function buildAudienceOptions(copy: Copy): Array<{ value: Audience; label: strin
     { value: 'client', label: copy.audiences.client.label, helper: copy.audiences.client.helper },
     { value: 'colleague', label: copy.audiences.colleague.label, helper: copy.audiences.colleague.helper },
     { value: 'partner', label: copy.audiences.partner.label, helper: copy.audiences.partner.helper },
-    { value: 'other', label: copy.audiences.other.label, helper: copy.audiences.other.helper },
+    { value: 'general', label: copy.audiences.general.label, helper: copy.audiences.general.helper },
   ]
+}
+
+const AUDIENCE_VALUES = new Set<Audience>(['boss', 'client', 'colleague', 'partner', 'general'])
+
+function normalizeAudience(value: string | null | undefined): Audience {
+  return value && AUDIENCE_VALUES.has(value as Audience) ? (value as Audience) : 'general'
 }
 
 const DEFAULT_REWRITE_INSTRUCTION: Record<Locale, string> = {
@@ -685,16 +692,53 @@ const DEFAULT_REWRITE_INSTRUCTION: Record<Locale, string> = {
   fr: 'Reecris le texte pour qu il soit plus clair, plus calme et pret a envoyer, en gardant le brouillon en anglais.',
 }
 
-const SPEECH_RECOGNITION_LOCALE: Record<Locale, string> = {
-  en: 'en-US',
-  ru: 'ru-RU',
-  es: 'es-ES',
-  de: 'de-DE',
-  fr: 'fr-FR',
-}
-
 function defaultRewriteInstruction(locale: Locale) {
   return DEFAULT_REWRITE_INSTRUCTION[locale]
+}
+
+const MAX_RECORDING_SECONDS = 60
+
+function mergeTranscribedText(existing: string, transcript: string) {
+  const normalizedTranscript = transcript.trim()
+
+  if (!normalizedTranscript) {
+    return existing
+  }
+
+  if (!existing.trim()) {
+    return normalizedTranscript
+  }
+
+  const separator = existing.endsWith('\n') ? '' : '\n'
+  return `${existing}${separator}${normalizedTranscript}`
+}
+
+async function transcribeBlob(blob: Blob): Promise<string> {
+  const form = new FormData()
+  const ext = blob.type.includes('ogg') ? 'ogg' : 'webm'
+  form.append('audio', new File([blob], `voice-input.${ext}`, { type: blob.type }))
+
+  const endpoint = new URL('/api/transcribe', window.location.origin).toString()
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    body: form,
+  })
+
+  const data = (await response.json().catch(() => ({}))) as {
+    text?: string
+    error?: string
+  }
+
+  if (!response.ok) {
+    throw new Error(data.error || `Transcription failed (HTTP ${response.status}).`)
+  }
+
+  const transcript = data.text?.trim() || ''
+  if (!transcript) {
+    throw new Error('No transcript returned.')
+  }
+
+  return transcript
 }
 
 type HighlightTone = 'yellow' | 'red' | 'green'
@@ -924,6 +968,14 @@ function MicIcon() {
   )
 }
 
+function StopGlyph() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" />
+    </svg>
+  )
+}
+
 function DraftEditor({
   value,
   highlights,
@@ -1136,25 +1188,36 @@ async function postAssistant<T>(body: Record<string, unknown>, fallbackError: st
 
 export default function Page() {
   const [workingText, setWorkingText] = useState('')
-  const [audience, setAudience] = useState<Audience>('other')
+  const [audience, setAudience] = useState<Audience>('general')
   const [voiceCommand, setVoiceCommand] = useState('')
   const [locale, setLocale] = useState<Locale>('en')
   const [version, setVersion] = useState(1)
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
   const [past, setPast] = useState<DraftSnapshot[]>([])
   const [future, setFuture] = useState<DraftSnapshot[]>([])
-  const [lastChanges, setLastChanges] = useState<TransformChange[]>([])
+  const [lastChanges, setLastChanges] = useState<EditChange[]>([])
   const [lastChangeNote, setLastChangeNote] = useState('')
-  const [status, setStatus] = useState<'idle' | 'analyzing' | 'rewriting' | 'listening'>('idle')
+  const [status, setStatus] = useState<'idle' | 'analyzing' | 'rewriting'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [clientId, setClientId] = useState('anonymous')
-  const [speechSupported, setSpeechSupported] = useState(false)
-
-  const recognitionRef = useRef<SpeechRecognitionController | null>(null)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const voiceStopRequestedRef = useRef(false)
   const hydratedRef = useRef(false)
   const lastAnalyzedDraftRef = useRef('')
   const editorSelectionRef = useRef<EditorSelection | null>(null)
+  const recorder = useAudioRecorder()
+  const {
+    isSupported: voiceSupported,
+    isRecording,
+    isStarting,
+    level,
+    error: recorderError,
+    start,
+    stop,
+    abort,
+    clearError,
+  } = recorder
   const copy = useMemo(() => getCopy(locale), [locale])
   const audienceOptions = useMemo(() => buildAudienceOptions(copy), [copy])
   const localeOptions = useMemo(
@@ -1182,7 +1245,7 @@ export default function Page() {
 
     if (persisted) {
       setWorkingText(persisted.workingText)
-      setAudience(persisted.audience)
+      setAudience(normalizeAudience(persisted.audience))
       setVoiceCommand(persisted.voiceCommand || '')
       setLocale(nextLocale)
       setVersion(Math.max(1, persistedVersion || 0))
@@ -1199,27 +1262,12 @@ export default function Page() {
       setVersion(1)
       setLastChangeNote(getCopy(nextLocale).status.startDraft)
     }
-
-    const win = window as Window & {
-      SpeechRecognition?: new () => SpeechRecognitionController
-      webkitSpeechRecognition?: new () => SpeechRecognitionController
-    }
-
-    setSpeechSupported(Boolean(win.SpeechRecognition || win.webkitSpeechRecognition))
     hydratedRef.current = true
-
-    return () => {
-      recognitionRef.current?.stop()
-    }
   }, [])
 
   useEffect(() => {
     document.documentElement.lang = locale
     document.title = `${copy.hero.eyebrow} — ${copy.hero.title}`
-
-    if (recognitionRef.current) {
-      recognitionRef.current.lang = SPEECH_RECOGNITION_LOCALE[locale]
-    }
   }, [copy.hero.eyebrow, copy.hero.title, locale])
 
   useEffect(() => {
@@ -1294,8 +1342,9 @@ export default function Page() {
 
     return []
   }, [analysis, draftIsStale, lastChanges])
-  const statusText =
-    status === 'listening'
+  const statusText = isTranscribing
+    ? copy.status.transcribing
+    : isRecording || isStarting
       ? copy.status.listening
       : status === 'analyzing'
         ? copy.status.analyzing
@@ -1320,8 +1369,12 @@ export default function Page() {
     setFuture([])
   }
 
-  async function analyzeCurrentDraft(textToAnalyze: string, options?: { commitDraft?: boolean }) {
+  async function analyzeCurrentDraft(
+    textToAnalyze: string,
+    options?: { commitDraft?: boolean; preserveNote?: boolean },
+  ) {
     const commitDraft = options?.commitDraft ?? false
+    const preserveNote = options?.preserveNote ?? false
     setStatus('analyzing')
     setError(null)
 
@@ -1348,7 +1401,9 @@ export default function Page() {
         lastAnalyzedDraftRef.current = textToAnalyze
       }
 
-      setLastChangeNote(copy.status.analysisUpdated)
+      if (!preserveNote) {
+        setLastChangeNote(copy.status.analysisUpdated)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : copy.status.analysisFailed)
     } finally {
@@ -1368,9 +1423,9 @@ export default function Page() {
     await analyzeCurrentDraft(source)
   }
 
-  async function runRewrite() {
+  async function runRewrite(instructionOverride?: string) {
     const source = workingText.trim()
-    const instruction = voiceCommand.trim() || defaultRewriteInstruction(locale)
+    const instruction = instructionOverride?.trim() || voiceCommand.trim() || defaultRewriteInstruction(locale)
 
     if (source.length < 3) {
       setError(copy.errors.addDraft)
@@ -1382,7 +1437,7 @@ export default function Page() {
     setError(null)
 
     try {
-      const result = await postAssistant<TransformResponse>({
+      const result = await postAssistant<EditResponse>({
         mode: 'edit',
         text: source,
         audience,
@@ -1398,11 +1453,11 @@ export default function Page() {
         end: result.updatedText.length,
       }
       setWorkingText(result.updatedText)
-      setLastChangeNote(result.note)
-      setLastChanges(result.changes)
       setVoiceCommand('')
+      setLastChangeNote(result.changes.map((change) => change.summary).join(' · ') || copy.status.analysisUpdated)
+      setLastChanges(result.changes)
       lastAnalyzedDraftRef.current = result.updatedText
-      await analyzeCurrentDraft(result.updatedText)
+      await analyzeCurrentDraft(result.updatedText, { preserveNote: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : copy.status.rewriteFailed)
       setStatus('idle')
@@ -1497,78 +1552,71 @@ export default function Page() {
     }
   }
 
-  function getSpeechRecognition() {
-    const win = window as Window & {
-      SpeechRecognition?: new () => SpeechRecognitionController
-      webkitSpeechRecognition?: new () => SpeechRecognitionController
-    }
+  const stopAndTranscribe = useCallback(async () => {
+    voiceStopRequestedRef.current = false
 
-    return win.SpeechRecognition ?? win.webkitSpeechRecognition ?? null
-  }
-
-  function appendTranscript(transcript: string) {
-    const cleaned = transcript.trim()
-    if (!cleaned) {
+    const blob = await stop()
+    if (!blob) {
+      setError(copy.errors.couldNotStart)
       return
     }
 
-    setVoiceCommand((previous) => {
-      const prefix = previous.trim()
-      return prefix ? `${prefix} ${cleaned}` : cleaned
-    })
-  }
-
-  async function toggleVoiceCommandMic() {
-    if (status === 'listening') {
-      recognitionRef.current?.stop()
-      return
-    }
-
-    if (!speechSupported) {
-      setError(copy.errors.dictationUnsupported)
-      return
-    }
-
-    const Recognition = getSpeechRecognition()
-    if (!Recognition) {
-      setError(copy.errors.dictationUnsupported)
-      return
-    }
-
-    if (!recognitionRef.current) {
-      const recognition = new Recognition()
-      recognition.lang = SPEECH_RECOGNITION_LOCALE[locale]
-      recognition.continuous = false
-      recognition.interimResults = false
-      recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results ?? [])
-          .map((result: any) => result?.[0]?.transcript || '')
-          .join(' ')
-        appendTranscript(transcript)
-        setLastChangeNote(copy.status.voiceCommandCaptured)
-      }
-      recognition.onerror = (event: any) => {
-        setError(`${copy.errors.dictationFailed}${event?.error ? `: ${event.error}` : '.'}`)
-        setStatus('idle')
-      }
-      recognition.onend = () => {
-        setStatus((current) => (current === 'listening' ? 'idle' : current))
-      }
-      recognitionRef.current = recognition
-    }
-
-    setError(null)
-    setStatus('listening')
-
+    setIsTranscribing(true)
     try {
-      recognitionRef.current.start()
+      const transcript = await transcribeBlob(blob)
+      setVoiceCommand(transcript)
+      setLastChangeNote(copy.status.voiceCommandCaptured)
+      setError(null)
+      setIsTranscribing(false)
+      await runRewrite(transcript)
     } catch (err) {
-      setStatus('idle')
-      setError(err instanceof Error ? err.message : copy.errors.couldNotStart)
+      setIsTranscribing(false)
+      setError(err instanceof Error ? err.message : copy.errors.dictationFailed)
     }
-  }
+  }, [copy.errors.couldNotStart, copy.errors.dictationFailed, copy.status.voiceCommandCaptured, runRewrite, stop])
+
+  const startVoiceCapture = useCallback(
+    async (event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (status !== 'idle' || isRecording || isStarting || isTranscribing || !voiceSupported) {
+        return
+      }
+
+      voiceStopRequestedRef.current = false
+      setError(null)
+      clearError()
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId)
+      } catch {
+        // ignore
+      }
+
+      await start()
+    },
+    [clearError, isRecording, isStarting, isTranscribing, start, status, voiceSupported],
+  )
+
+  const requestVoiceStop = useCallback(() => {
+    voiceStopRequestedRef.current = true
+    if (isRecording) {
+      void stopAndTranscribe()
+    }
+  }, [isRecording, stopAndTranscribe])
+
+  const cancelVoiceCapture = useCallback(() => {
+    voiceStopRequestedRef.current = false
+    if (isRecording || isStarting) {
+      abort()
+    }
+  }, [abort, isRecording, isStarting])
+
+  useEffect(() => {
+    if (isRecording && voiceStopRequestedRef.current && !isTranscribing) {
+      void stopAndTranscribe()
+    }
+  }, [isRecording, isTranscribing, stopAndTranscribe])
 
   const verdictLabel = analysis ? localizedVerdict(analysis.verdict, copy) : copy.panel.ready
+  const interactionBusy = status !== 'idle' || isRecording || isStarting || isTranscribing
 
   return (
     <main className="page-shell">
@@ -1619,7 +1667,7 @@ export default function Page() {
             <button
               className="ghost-button rail-button"
               onClick={undoLastChange}
-              disabled={!past.length || status !== 'idle'}
+              disabled={!past.length || interactionBusy}
               type="button"
             >
               {copy.buttons.undo}
@@ -1627,7 +1675,7 @@ export default function Page() {
             <button
               className="ghost-button rail-button"
               onClick={redoLastChange}
-              disabled={!future.length || status !== 'idle'}
+              disabled={!future.length || interactionBusy}
               type="button"
             >
               {copy.buttons.redo}
@@ -1635,7 +1683,7 @@ export default function Page() {
             <button
               className="ghost-button rail-button"
               onClick={() => void copyWorkingText()}
-              disabled={status !== 'idle' || !workingText.trim()}
+              disabled={interactionBusy || !workingText.trim()}
               type="button"
             >
               {copied ? copy.buttons.copied : copy.buttons.copy}
@@ -1643,7 +1691,7 @@ export default function Page() {
             <button
               className="ghost-button rail-button"
               onClick={() => void pasteIntoDraft()}
-              disabled={status !== 'idle'}
+              disabled={interactionBusy}
               type="button"
             >
               {copy.buttons.paste}
@@ -1664,7 +1712,7 @@ export default function Page() {
           <button
             className="primary-button"
             onClick={() => void runCheck()}
-            disabled={status !== 'idle' || workingText.trim().length < 3}
+            disabled={interactionBusy || workingText.trim().length < 3}
             type="button"
           >
             {status === 'analyzing' ? copy.buttons.checking : copy.buttons.check}
@@ -1672,7 +1720,7 @@ export default function Page() {
           <button
             className="secondary-button"
             onClick={() => void runRewrite()}
-            disabled={status !== 'idle' || !workingText.trim()}
+            disabled={interactionBusy || !workingText.trim()}
             type="button"
           >
             {status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
@@ -1695,7 +1743,7 @@ export default function Page() {
             <button
               className="secondary-button icon-button edit-button"
               onClick={() => void runRewrite()}
-              disabled={status !== 'idle' || !workingText.trim()}
+              disabled={interactionBusy || !workingText.trim()}
               type="button"
               title={status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
               aria-label={status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
@@ -1705,18 +1753,41 @@ export default function Page() {
 
             <button
               className="ghost-button icon-button mic-button"
-              onClick={() => void toggleVoiceCommandMic()}
-              disabled
+              onPointerDown={(event) => {
+                void startVoiceCapture(event)
+              }}
+              onPointerUp={() => {
+                requestVoiceStop()
+              }}
+              onPointerCancel={cancelVoiceCapture}
+              onContextMenu={(event) => {
+                event.preventDefault()
+              }}
+              disabled={!voiceSupported || (status !== 'idle' && !isRecording) || isStarting || isTranscribing}
               type="button"
-              title={status === 'listening' ? copy.buttons.stopMic : copy.buttons.mic}
-              aria-label={status === 'listening' ? copy.buttons.stopMic : copy.buttons.mic}
+              title={isRecording || isTranscribing ? copy.buttons.stopMic : copy.buttons.mic}
+              aria-label={isRecording || isTranscribing ? copy.buttons.stopMic : copy.buttons.mic}
+              aria-pressed={isRecording}
             >
-              <MicIcon />
+              {isTranscribing ? <span className="voice-spinner" aria-hidden="true" /> : isRecording ? <StopGlyph /> : <MicIcon />}
             </button>
           </div>
         </div>
 
-        {error ? <div className="error-banner">{error}</div> : null}
+        {isRecording || isStarting || isTranscribing ? (
+          <div className="voice-status" aria-live="polite">
+            <span className="voice-status-label">
+              {isTranscribing ? copy.status.transcribing : copy.status.listening}
+            </span>
+            {isRecording ? (
+              <div className="voice-level-wrap" aria-hidden="true">
+                <div className="voice-level-bar" style={{ width: `${Math.max(6, Math.min(100, Math.round(level * 100)))}%` }} />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {error || recorderError ? <div className="error-banner">{error || recorderError}</div> : null}
 
         <section className="analysis-card" aria-live="polite">
           <div className="analysis-topline">
@@ -1724,8 +1795,8 @@ export default function Page() {
           </div>
           <p className="analysis-meta">
             {analysis
-              ? `${copy.analysis.likelyIntent}: ${analysis.inferredGoal} · ${copy.analysis.confidence} ${Math.round(analysis.confidence * 100)}%`
-              : copy.analysis.resultsPlaceholder}
+            ? `${copy.analysis.likelyIntent}: ${analysis.inferredGoal} · ${copy.analysis.tone}: ${analysis.recommendedTone}`
+            : copy.analysis.resultsPlaceholder}
           </p>
           {analysis ? (
             <div className="analysis-reasons">

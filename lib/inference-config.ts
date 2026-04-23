@@ -98,7 +98,7 @@ export function getInferenceConfig(): InferenceConfig {
       'SAFETOSEND_VOICE_MODEL_NAME',
       'SAFETOSEND_VOICE_MODEL',
       'openai',
-      'gpt-5.4',
+      'gpt-4o-mini-transcribe',
       globalProvider,
     ),
     textAnalysis: getSlotConfig(

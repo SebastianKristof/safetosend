@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import {
   analysisResponseSchema,
   assistantRequestSchema,
-  transformResponseSchema,
+  editResponseSchema,
 } from '@/lib/assistant-contracts'
 import { getInferenceConfig, resolveInferenceModel } from '@/lib/inference-config'
 import {
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
       const result = await generateText({
         model,
         system: prompts.analyzeSystem,
-        prompt: buildAnalysisPrompt(payload, prompts.analyzeUser),
+        prompt: buildAnalysisPrompt(payload, prompts.analyzeUser, prompts.audienceGuidance[payload.audience]),
         output: Output.object({
           schema: analysisResponseSchema,
         }),
@@ -111,10 +111,9 @@ export async function POST(request: Request) {
 
     const result = await generateText({
       model,
-      system: prompts.transformSystem,
-      prompt: buildEditPrompt(payload, prompts.editUser),
+      prompt: buildEditPrompt(payload, prompts.editUser, prompts.audienceGuidance[payload.audience]),
       output: Output.object({
-        schema: transformResponseSchema,
+        schema: editResponseSchema,
       }),
       temperature: 0.35,
       maxOutputTokens: 320,
