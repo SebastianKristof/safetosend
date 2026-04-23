@@ -716,7 +716,8 @@ async function transcribeBlob(blob: Blob): Promise<string> {
   const ext = blob.type.includes('ogg') ? 'ogg' : 'webm'
   form.append('audio', new File([blob], `voice-input.${ext}`, { type: blob.type }))
 
-  const response = await fetch('/api/transcribe', {
+  const endpoint = new URL('/api/transcribe', window.location.origin).toString()
+  const response = await fetch(endpoint, {
     method: 'POST',
     body: form,
   })
@@ -1444,6 +1445,7 @@ export default function Page() {
         end: result.updatedText.length,
       }
       setWorkingText(result.updatedText)
+      setVoiceCommand('')
       setLastChangeNote(result.note)
       setLastChanges(result.changes)
       lastAnalyzedDraftRef.current = result.updatedText
