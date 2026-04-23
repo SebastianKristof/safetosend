@@ -260,7 +260,11 @@ h2 {
   font-weight: 400;
   letter-spacing: normal;
   line-height: var(--editor-line-height);
-  resize: vertical;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  outline: none;
+  cursor: text;
+  display: block;
 }
 
 .editor-textarea:focus {
@@ -272,10 +276,29 @@ h2 {
   color: var(--soft);
 }
 
-.editor-placeholder {
-  margin: 0;
-  color: #aaa193;
-  line-height: 1.5;
+.editor-textarea:empty::before {
+  content: attr(data-placeholder);
+  color: var(--soft);
+  pointer-events: none;
+}
+
+.highlight-mark {
+  padding: 0 3px;
+  border-radius: 4px;
+  color: inherit;
+  background: transparent;
+}
+
+.highlight-mark.yellow {
+  background: #f6ecbf;
+}
+
+.highlight-mark.red {
+  background: #f5d9db;
+}
+
+.highlight-mark.green {
+  background: #dff0e3;
 }
 
 .edit-input {

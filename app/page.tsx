@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent } from 'react'
 import type {
   AnalysisResponse,
   Audience,
@@ -708,6 +708,211 @@ function defaultRewriteInstruction(locale: Locale) {
   return DEFAULT_REWRITE_INSTRUCTION[locale]
 }
 
+type HighlightTone = 'yellow' | 'red' | 'green'
+
+type HighlightSpan = {
+  text: string
+  tone: HighlightTone
+  label: string
+}
+
+type EditorSelection = {
+  start: number
+  end: number
+}
+
+function escapeHtml(text: string) {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function findHighlightIndex(text: string, needle: string, fromIndex: number) {
+  const exactIndex = text.indexOf(needle, fromIndex)
+  if (exactIndex >= 0) {
+    return exactIndex
+  }
+
+  return text.toLowerCase().indexOf(needle.toLowerCase(), fromIndex)
+}
+
+function buildHighlightSegments(text: string, highlights: HighlightSpan[]) {
+  const accepted: Array<{ start: number; end: number; highlight: HighlightSpan }> = []
+  let searchFrom = 0
+
+  for (const highlight of highlights) {
+    const needle = highlight.text.trim()
+    if (!needle) {
+      continue
+    }
+
+    let start = findHighlightIndex(text, needle, searchFrom)
+    if (start < 0) {
+      start = findHighlightIndex(text, needle, 0)
+    }
+    if (start < 0) {
+      continue
+    }
+
+    const end = start + needle.length
+    const overlapsExisting = accepted.some((segment) => start < segment.end && end > segment.start)
+    if (overlapsExisting) {
+      continue
+    }
+
+    accepted.push({ start, end, highlight })
+    searchFrom = end
+  }
+
+  accepted.sort((left, right) => left.start - right.start)
+
+  const pieces: Array<
+    | { kind: 'text'; value: string }
+    | { kind: 'highlight'; value: string; tone: HighlightTone; label: string }
+  > = []
+
+  let lastIndex = 0
+  for (const segment of accepted) {
+    if (segment.start > lastIndex) {
+      pieces.push({ kind: 'text', value: text.slice(lastIndex, segment.start) })
+    }
+
+    pieces.push({
+      kind: 'highlight',
+      value: text.slice(segment.start, segment.end),
+      tone: segment.highlight.tone,
+      label: segment.highlight.label,
+    })
+    lastIndex = segment.end
+  }
+
+  if (lastIndex < text.length) {
+    pieces.push({ kind: 'text', value: text.slice(lastIndex) })
+  }
+
+  return pieces
+}
+
+function renderEditorHtml(text: string, highlights: HighlightSpan[]) {
+  const segments = buildHighlightSegments(text, highlights)
+
+  if (!segments.length) {
+    return ''
+  }
+
+  return segments
+    .map((segment) => {
+      if (segment.kind === 'text') {
+        return escapeHtml(segment.value)
+      }
+
+      return `<mark class="highlight-mark ${segment.tone}" title="${escapeHtml(segment.label)}">${escapeHtml(segment.value)}</mark>`
+    })
+    .join('')
+}
+
+function normalizeEditorText(text: string) {
+  const normalized = text.replace(/\r/g, '').replace(/\u00a0/g, ' ')
+  return normalized.trim() ? normalized : ''
+}
+
+function getSelectionOffset(root: HTMLElement, node: Node, offset: number) {
+  const range = document.createRange()
+  range.selectNodeContents(root)
+  range.setEnd(node, offset)
+  return range.toString().length
+}
+
+function captureEditorSelection(root: HTMLElement): EditorSelection | null {
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0) {
+    return null
+  }
+
+  const anchorNode = selection.anchorNode
+  const focusNode = selection.focusNode
+  if (!anchorNode || !focusNode || !root.contains(anchorNode) || !root.contains(focusNode)) {
+    return null
+  }
+
+  const anchor = getSelectionOffset(root, anchorNode, selection.anchorOffset)
+  const focus = getSelectionOffset(root, focusNode, selection.focusOffset)
+
+  return anchor <= focus ? { start: anchor, end: focus } : { start: focus, end: anchor }
+}
+
+function locateTextPosition(root: HTMLElement, targetOffset: number) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  let currentOffset = 0
+  let node = walker.nextNode() as Text | null
+  let lastTextNode: Text | null = null
+
+  while (node) {
+    const nextOffset = currentOffset + node.data.length
+    lastTextNode = node
+
+    if (targetOffset <= nextOffset) {
+      return {
+        node,
+        offset: Math.max(0, targetOffset - currentOffset),
+      }
+    }
+
+    currentOffset = nextOffset
+    node = walker.nextNode() as Text | null
+  }
+
+  if (lastTextNode) {
+    return {
+      node: lastTextNode,
+      offset: lastTextNode.data.length,
+    }
+  }
+
+  return {
+    node: root,
+    offset: 0,
+  }
+}
+
+function restoreEditorSelection(root: HTMLElement, selection: EditorSelection) {
+  const browserSelection = window.getSelection()
+  if (!browserSelection) {
+    return
+  }
+
+  const range = document.createRange()
+  const start = locateTextPosition(root, selection.start)
+  const end = locateTextPosition(root, selection.end)
+
+  range.setStart(start.node, start.offset)
+  range.setEnd(end.node, end.offset)
+
+  browserSelection.removeAllRanges()
+  browserSelection.addRange(range)
+}
+
+function insertPlainTextIntoEditor(root: HTMLElement, text: string) {
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0) {
+    return false
+  }
+
+  const range = selection.getRangeAt(0)
+  range.deleteContents()
+  const node = document.createTextNode(text)
+  range.insertNode(node)
+  range.setStartAfter(node)
+  range.collapse(true)
+  selection.removeAllRanges()
+  selection.addRange(range)
+  root.focus()
+  return true
+}
+
 function RewriteIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
@@ -727,6 +932,99 @@ function MicIcon() {
         fill="currentColor"
       />
     </svg>
+  )
+}
+
+function DraftEditor({
+  value,
+  highlights,
+  placeholder,
+  selectionRef,
+  onChange,
+  onScroll,
+}: {
+  value: string
+  highlights: HighlightSpan[]
+  placeholder: string
+  selectionRef: { current: EditorSelection | null }
+  onChange: (value: string) => void
+  onScroll?: (scrollTop: number) => void
+}) {
+  const editorRef = useRef<HTMLDivElement | null>(null)
+  const editorHtml = useMemo(() => renderEditorHtml(value, highlights), [highlights, value])
+
+  useLayoutEffect(() => {
+    const editor = editorRef.current
+    if (!editor) {
+      return
+    }
+
+    const nextSelection = selectionRef.current ?? { start: value.length, end: value.length }
+
+    if (editor.innerHTML !== editorHtml) {
+      editor.innerHTML = editorHtml
+    }
+
+    if (document.activeElement === editor) {
+      restoreEditorSelection(editor, nextSelection)
+    }
+  }, [editorHtml, selectionRef, value.length])
+
+  function saveSelection() {
+    const editor = editorRef.current
+    if (!editor) {
+      return
+    }
+
+    const selection = captureEditorSelection(editor)
+    if (selection) {
+      selectionRef.current = selection
+    }
+  }
+
+  function handleInput(event: FormEvent<HTMLDivElement>) {
+    const editor = event.currentTarget
+    selectionRef.current = captureEditorSelection(editor)
+    onChange(normalizeEditorText(editor.innerText))
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
+    event.preventDefault()
+    const text = event.clipboardData.getData('text/plain')
+
+    if (!text) {
+      return
+    }
+
+    const editor = event.currentTarget
+    if (!insertPlainTextIntoEditor(editor, text)) {
+      return
+    }
+
+    selectionRef.current = captureEditorSelection(editor)
+    onChange(normalizeEditorText(editor.innerText))
+  }
+
+  return (
+    <div
+      ref={editorRef}
+      className="text-input draft-input editor-textarea"
+      contentEditable
+      suppressContentEditableWarning
+      role="textbox"
+      aria-multiline="true"
+      data-placeholder={placeholder}
+      onInput={handleInput}
+      onPaste={handlePaste}
+      onKeyUp={saveSelection}
+      onMouseUp={saveSelection}
+      onFocus={saveSelection}
+      onScroll={(event) => {
+        onScroll?.(event.currentTarget.scrollTop)
+      }}
+      spellCheck
+      dangerouslySetInnerHTML={{ __html: editorHtml }}
+    />
   )
 }
 
@@ -778,6 +1076,7 @@ export default function Page() {
   const recognitionRef = useRef<SpeechRecognitionController | null>(null)
   const hydratedRef = useRef(false)
   const lastAnalyzedDraftRef = useRef('')
+  const editorSelectionRef = useRef<EditorSelection | null>(null)
   const copy = useMemo(() => getCopy(locale), [locale])
   const audienceOptions = useMemo(() => buildAudienceOptions(copy), [copy])
   const localeOptions = useMemo(
@@ -899,6 +1198,27 @@ export default function Page() {
     return verdictStyle(analysis.verdict)
   }, [analysis])
   const draftIsStale = Boolean(analysis) && workingText.trim() !== lastAnalyzedDraftRef.current.trim()
+  const editorHighlights = useMemo<HighlightSpan[]>(() => {
+    if (lastChanges.length) {
+      return lastChanges
+        .filter((change) => change.after.trim())
+        .map((change) => ({
+          text: change.after,
+          tone: 'green' as const,
+          label: change.summary,
+        }))
+    }
+
+    if (!draftIsStale && analysis?.highlights?.length) {
+      return analysis.highlights.map((highlight) => ({
+        text: highlight.text,
+        tone: highlight.severity,
+        label: highlight.reason,
+      }))
+    }
+
+    return []
+  }, [analysis, draftIsStale, lastChanges])
   const statusText =
     status === 'listening'
       ? copy.status.listening
@@ -944,6 +1264,10 @@ export default function Page() {
       setAnalysis(result)
 
       if (commitDraft) {
+        editorSelectionRef.current = {
+          start: result.suggestedText.length,
+          end: result.suggestedText.length,
+        }
         setWorkingText(result.suggestedText)
         lastAnalyzedDraftRef.current = result.suggestedText
       } else {
@@ -996,6 +1320,10 @@ export default function Page() {
       }, copy.status.requestFailed)
 
       setVersion((current) => current + 1)
+      editorSelectionRef.current = {
+        start: result.updatedText.length,
+        end: result.updatedText.length,
+      }
       setWorkingText(result.updatedText)
       setLastChangeNote(result.note)
       setLastChanges(result.changes)
@@ -1017,6 +1345,10 @@ export default function Page() {
 
     setPast((existing) => existing.slice(0, -1))
     setFuture((existing) => [...existing, currentSnapshot()])
+    editorSelectionRef.current = {
+      start: previous.draft.length,
+      end: previous.draft.length,
+    }
     setWorkingText(previous.draft)
     setAnalysis(previous.analysis)
     setLastChangeNote(previous.note)
@@ -1034,6 +1366,10 @@ export default function Page() {
 
     setFuture((existing) => existing.slice(0, -1))
     setPast((existing) => [...existing, currentSnapshot()])
+    editorSelectionRef.current = {
+      start: next.draft.length,
+      end: next.draft.length,
+    }
     setWorkingText(next.draft)
     setAnalysis(next.analysis)
     setLastChangeNote(next.note)
@@ -1074,6 +1410,10 @@ export default function Page() {
       }
 
       checkpoint(copy.status.beforePaste)
+      editorSelectionRef.current = {
+        start: text.length,
+        end: text.length,
+      }
       setWorkingText(text)
       setLastChangeNote(copy.status.clipboardPasted)
       setLastChanges([])
@@ -1188,15 +1528,16 @@ export default function Page() {
           <label className="field editor-field">
             <span>{copy.fields.workingText}</span>
             <div className="editor-surface">
-              <textarea
-                className="text-input draft-input editor-textarea"
+              <DraftEditor
                 value={workingText}
-                onChange={(event) => {
-                  setWorkingText(event.target.value)
+                highlights={editorHighlights}
+                placeholder={copy.placeholders.workingText}
+                selectionRef={editorSelectionRef}
+                onChange={(nextValue) => {
+                  setWorkingText(nextValue)
                   setError(null)
                   setLastChanges([])
                 }}
-                placeholder={copy.placeholders.workingText}
               />
             </div>
           </label>
