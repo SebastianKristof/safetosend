@@ -1,14 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import type { AnalysisResponse, AssistantRequest } from './assistant-contracts'
-
-const audienceTone = {
-  boss: 'professional, concise, and respectful',
-  client: 'clear, calm, and relationship-safe',
-  colleague: 'direct but collaborative',
-  partner: 'warm, grounded, and non-defensive',
-  other: 'neutral, clear, and low-friction',
-} as const
+import type { AnalysisResponse, AssistantRequest, Audience } from './assistant-contracts'
 
 const languageName = {
   en: 'English',
@@ -30,6 +22,7 @@ type PromptBundle = {
   analyzeSystem: string
   analyzeUser: string
   editUser: string
+  audienceGuidance: Record<Audience, string>
 }
 
 let promptBundlePromise: Promise<PromptBundle> | null = null
@@ -45,12 +38,24 @@ export async function getPromptBundle() {
       readPrompt('prompts/analyze-system.md'),
       readPrompt('prompts/analyze-user.md'),
       readPrompt('prompts/edit-user.md'),
+      readPrompt('prompts/audiences/boss.md'),
+      readPrompt('prompts/audiences/client.md'),
+      readPrompt('prompts/audiences/colleague.md'),
+      readPrompt('prompts/audiences/partner.md'),
+      readPrompt('prompts/audiences/other.md'),
     ]).then(
-      ([analyzeSystem, analyzeUser, editUser]) =>
+      ([analyzeSystem, analyzeUser, editUser, boss, client, colleague, partner, other]) =>
         ({
           analyzeSystem,
           analyzeUser,
           editUser,
+          audienceGuidance: {
+            boss,
+            client,
+            colleague,
+            partner,
+            other,
+          },
         }) satisfies PromptBundle,
     )
   }
@@ -62,10 +67,14 @@ export function renderPrompt(template: string, values: Record<string, string>) {
   return template.replace(/\{\{(\w+)\}\}/g, (_match, key: string) => values[key] ?? '')
 }
 
-export function buildAnalysisPrompt(request: AssistantRequest, template: string) {
+export function buildAnalysisPrompt(
+  request: AssistantRequest,
+  template: string,
+  audienceDescription: string,
+) {
   return renderPrompt(template, {
     audience: request.audience,
-    audience_tone: audienceTone[request.audience],
+    audience_description: audienceDescription,
     language_instruction: languageInstruction[request.locale],
     language_name: languageName[request.locale],
     locale: request.locale,
@@ -73,13 +82,17 @@ export function buildAnalysisPrompt(request: AssistantRequest, template: string)
   })
 }
 
-export function buildEditPrompt(request: AssistantRequest, template: string) {
+export function buildEditPrompt(
+  request: AssistantRequest,
+  template: string,
+  audienceDescription: string,
+) {
   const context = buildAnalysisContext(request)
   const instruction = request.instruction?.trim() || ''
 
   return renderPrompt(template, {
     audience: request.audience,
-    audience_tone: audienceTone[request.audience],
+    audience_description: audienceDescription,
     language_instruction: languageInstruction[request.locale],
     language_name: languageName[request.locale],
     locale: request.locale,

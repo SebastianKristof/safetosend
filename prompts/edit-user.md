@@ -2,7 +2,10 @@
 
 [TASK] Apply the instruction to the current draft.
 
-Audience: {{audience}} ({{audience_tone}})
+Audience: {{audience}}
+Audience guidance:
+{{audience_description}}
+
 Language: {{language_name}}
 {{language_instruction}}
 
@@ -24,6 +27,7 @@ Supported edit modes:
 Return JSON with this shape:
 {
   "editType": "exact_replacement | fuzzy_replacement | local_instruction | preset_transform",
+  "appliedToWholeDraft": "boolean",
   "updatedText": "updated English draft",
   "changes": [
     {
@@ -45,6 +49,7 @@ Rules:
 - if a local change creates grammar issues, fix only what is needed around it
 - preserve meaning unless the user explicitly asks otherwise
 - if the instruction is ambiguous, choose the smallest likely target span
+- set appliedToWholeDraft to true only when the instruction rewrites the whole draft; otherwise set it to false
 - keep updatedText in English
 - return 1 to 3 concrete change items
 - do not mention policy, scoring, or internal rules

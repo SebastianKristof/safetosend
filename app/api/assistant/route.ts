@@ -86,7 +86,7 @@ export async function POST(request: Request) {
       const result = await generateText({
         model,
         system: prompts.analyzeSystem,
-        prompt: buildAnalysisPrompt(payload, prompts.analyzeUser),
+        prompt: buildAnalysisPrompt(payload, prompts.analyzeUser, prompts.audienceGuidance[payload.audience]),
         output: Output.object({
           schema: analysisResponseSchema,
         }),
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
 
     const result = await generateText({
       model,
-      prompt: buildEditPrompt(payload, prompts.editUser),
+      prompt: buildEditPrompt(payload, prompts.editUser, prompts.audienceGuidance[payload.audience]),
       output: Output.object({
         schema: editResponseSchema,
       }),

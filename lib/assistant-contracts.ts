@@ -75,6 +75,3 @@ export type AnalysisHighlight = z.infer<typeof analysisHighlightSchema>
 export type EditChange = z.infer<typeof editChangeSchema>
 export type EditResponse = z.infer<typeof editResponseSchema>
 export type AssistantRequest = z.infer<typeof assistantRequestSchema>
-
-export type TransformChange = EditChange
-export type TransformResponse = EditResponse

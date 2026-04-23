@@ -2,7 +2,10 @@
 
 [TASK] Analyze a draft, judge whether it is safe to send, explain the main communication risk briefly, and produce the best send-ready rewrite.
 
-Audience: {{audience}} ({{audience_tone}})
+Audience: {{audience}}
+Audience guidance:
+{{audience_description}}
+
 Language: {{language_name}}
 {{language_instruction}}
 
