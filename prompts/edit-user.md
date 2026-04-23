@@ -1,3 +1,7 @@
+[ROLE] You are an expert English text editor for business communication.
+
+[TASK] To edit a Draft text.
+
 Audience: {{audience}} ({{audience_tone}})
 Language: {{language_name}}
 {{language_instruction}}

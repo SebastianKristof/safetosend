@@ -4,8 +4,6 @@ export const audienceSchema = z.enum(['boss', 'client', 'colleague', 'partner', 
 export const localeSchema = z.enum(['en', 'ru', 'es', 'de', 'fr'])
 export const verdictSchema = z.enum(['Safe to send', 'Risky - revise', 'Do not send yet'])
 
-export const riskLevelSchema = z.enum(['low', 'medium', 'high'])
-
 export const analysisHighlightSchema = z.object({
   text: z.string().min(1),
   severity: z.enum(['yellow', 'red']),
@@ -20,7 +18,6 @@ export const transformChangeSchema = z.object({
 
 export const analysisResponseSchema = z.object({
   verdict: verdictSchema,
-  riskLevel: riskLevelSchema,
   reason: z.string().min(1),
   highlights: z.array(analysisHighlightSchema).max(5),
   suggestedText: z.string().min(1),
@@ -54,8 +51,8 @@ export const assistantRequestSchema = z.object({
 export type Audience = z.infer<typeof audienceSchema>
 export type Locale = z.infer<typeof localeSchema>
 export type Verdict = z.infer<typeof verdictSchema>
-export type AnalysisHighlight = z.infer<typeof analysisHighlightSchema>
 export type AnalysisResponse = z.infer<typeof analysisResponseSchema>
+export type AnalysisHighlight = z.infer<typeof analysisHighlightSchema>
 export type TransformChange = z.infer<typeof transformChangeSchema>
 export type TransformResponse = z.infer<typeof transformResponseSchema>
 export type AssistantRequest = z.infer<typeof assistantRequestSchema>
