@@ -66,20 +66,17 @@ export function renderPrompt(template: string, values: Record<string, string>) {
 }
 
 export function buildAnalysisPrompt(request: AssistantRequest, template: string) {
-  const goal = request.goal.trim() || 'Not specified'
   return renderPrompt(template, {
     audience: request.audience,
     audience_tone: audienceTone[request.audience],
     language_instruction: languageInstruction[request.locale],
     language_name: languageName[request.locale],
     locale: request.locale,
-    goal,
     text: request.text.trim(),
   })
 }
 
 export function buildEditPrompt(request: AssistantRequest, template: string) {
-  const goal = request.goal.trim() || 'Not specified'
   const context = buildAnalysisContext(request)
   const instruction = request.instruction?.trim() || ''
 
@@ -89,7 +86,6 @@ export function buildEditPrompt(request: AssistantRequest, template: string) {
     language_instruction: languageInstruction[request.locale],
     language_name: languageName[request.locale],
     locale: request.locale,
-    goal,
     context,
     text: request.text.trim(),
     instruction,
@@ -105,7 +101,7 @@ function buildAnalysisContext(request: AssistantRequest) {
   const parts = [
     context.verdict ? `Previous verdict: ${context.verdict}` : '',
     context.inferredGoal ? `Previous inferred goal: ${context.inferredGoal}` : '',
-    context.reasons?.length ? `Previous reasons: ${context.reasons.join(' | ')}` : '',
+    context.reason ? `Previous reason: ${context.reason}` : '',
   ].filter(Boolean)
 
   return parts.length ? `Context: ${parts.join(' / ')}` : ''
@@ -114,7 +110,7 @@ function buildAnalysisContext(request: AssistantRequest) {
 export function summarizeAnalysisForContext(result: AnalysisResponse) {
   return {
     verdict: result.verdict,
-    reasons: result.reasons,
+    reason: result.reason,
     inferredGoal: result.inferredGoal,
   }
 }

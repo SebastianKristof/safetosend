@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent } from 'react'
 import type {
   AnalysisResponse,
   Audience,
@@ -27,7 +27,7 @@ const UI_COPY = {
       resultsPlaceholder: 'Results appear here after you check or rewrite the message.',
       likelyIntent: 'Likely intent',
       confidence: 'Confidence',
-      reasons: 'Reasons',
+      reasons: 'Reason',
       changes: 'What changed',
       history: 'Recent history',
       current: 'Current',
@@ -36,12 +36,10 @@ const UI_COPY = {
       interfaceLanguage: 'Interface language',
       workingText: 'Working text',
       audience: 'Audience',
-      goal: 'Goal',
       voice: 'Voice commands',
     },
     placeholders: {
       workingText: 'Paste, type, or rewrite the message here.',
-      goal: 'Ask for clarification',
       voice: 'make it shorter and less blunt',
     },
     buttons: {
@@ -140,7 +138,7 @@ const UI_COPY = {
       resultsPlaceholder: 'Результат появится после проверки или правки сообщения.',
       likelyIntent: 'Вероятная цель',
       confidence: 'Уверенность',
-      reasons: 'Причины',
+      reasons: 'Причина',
       changes: 'Что изменилось',
       history: 'Последние версии',
       current: 'Текущая',
@@ -149,12 +147,10 @@ const UI_COPY = {
       interfaceLanguage: 'Язык интерфейса',
       workingText: 'Текст',
       audience: 'Адресат',
-      goal: 'Цель',
       voice: 'Голосовые команды',
     },
     placeholders: {
       workingText: 'Вставьте, напечатайте или перепишите сообщение здесь.',
-      goal: 'Например: попросить уточнение',
       voice: 'сделай короче и мягче',
     },
     buttons: {
@@ -253,7 +249,7 @@ const UI_COPY = {
       resultsPlaceholder: 'Los resultados aparecen aqui despues de revisar o reescribir el mensaje.',
       likelyIntent: 'Intencion probable',
       confidence: 'Confianza',
-      reasons: 'Motivos',
+      reasons: 'Motivo',
       changes: 'Que cambio',
       history: 'Historial reciente',
       current: 'Actual',
@@ -262,12 +258,10 @@ const UI_COPY = {
       interfaceLanguage: 'Idioma de la interfaz',
       workingText: 'Texto',
       audience: 'Destinatario',
-      goal: 'Objetivo',
       voice: 'Comandos de voz',
     },
     placeholders: {
       workingText: 'Pega, escribe o reescribe el mensaje aqui.',
-      goal: 'Pedir una aclaracion',
       voice: 'hazlo mas corto y menos brusco',
     },
     buttons: {
@@ -366,7 +360,7 @@ const UI_COPY = {
       resultsPlaceholder: 'Die Ergebnisse erscheinen hier nach der Pruefung oder Ueberarbeitung der Nachricht.',
       likelyIntent: 'Wahrscheinliche Absicht',
       confidence: 'Sicherheit',
-      reasons: 'Gruende',
+      reasons: 'Grund',
       changes: 'Was sich geaendert hat',
       history: 'Letzte Versionen',
       current: 'Aktuell',
@@ -375,12 +369,10 @@ const UI_COPY = {
       interfaceLanguage: 'Sprache der Oberflaeche',
       workingText: 'Text',
       audience: 'Empfaenger',
-      goal: 'Ziel',
       voice: 'Sprachbefehle',
     },
     placeholders: {
       workingText: 'Fuege die Nachricht hier ein, tippe sie ein oder ueberarbeite sie.',
-      goal: 'Um Klarstellung bitten',
       voice: 'mach es kuerzer und weniger schroff',
     },
     buttons: {
@@ -479,7 +471,7 @@ const UI_COPY = {
       resultsPlaceholder: 'Les resultats apparaissent ici apres la verification ou la reecriture du message.',
       likelyIntent: 'Intention probable',
       confidence: 'Confiance',
-      reasons: 'Raisons',
+      reasons: 'Raison',
       changes: 'Ce qui a change',
       history: 'Historique recent',
       current: 'Actuel',
@@ -488,12 +480,10 @@ const UI_COPY = {
       interfaceLanguage: 'Langue de l interface',
       workingText: 'Texte',
       audience: 'Destinataire',
-      goal: 'Objectif',
       voice: 'Commandes vocales',
     },
     placeholders: {
       workingText: 'Colle, saisis ou reecris le message ici.',
-      goal: 'Demander une clarification',
       voice: 'rends-le plus court et moins brusque',
     },
     buttons: {
@@ -586,7 +576,6 @@ type Copy = (typeof UI_COPY)[Locale]
 type PersistedState = {
   workingText: string
   audience: Audience
-  goal: string
   voiceCommand: string
   locale?: Locale
   version?: number
@@ -673,7 +662,7 @@ function buildAnalysisContextPayload(analysis: AnalysisResponse | null) {
 
   return {
     verdict: verdictIsCurrent ? verdict : undefined,
-    reasons: analysis.reasons,
+    reason: analysis.reason,
     inferredGoal: analysis.inferredGoal,
   }
 }
@@ -714,6 +703,20 @@ type HighlightSpan = {
   text: string
   tone: HighlightTone
   label: string
+}
+
+type EditorSelection = {
+  start: number
+  end: number
+}
+
+function escapeHtml(text: string) {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
 }
 
 function findHighlightIndex(text: string, needle: string, fromIndex: number) {
@@ -782,40 +785,121 @@ function buildHighlightSegments(text: string, highlights: HighlightSpan[]) {
   return pieces
 }
 
-function HighlightedText({
-  text,
-  highlights,
-  emptyLabel,
-}: {
-  text: string
-  highlights: HighlightSpan[]
-  emptyLabel: string
-}) {
+function renderEditorHtml(text: string, highlights: HighlightSpan[]) {
   const segments = buildHighlightSegments(text, highlights)
 
   if (!segments.length) {
-    return <p className="analysis-empty">{emptyLabel}</p>
+    return ''
   }
 
-  return (
-    <p className="highlight-text">
-      {segments.map((segment, index) => {
-        if (segment.kind === 'text') {
-          return <span key={`${segment.value}-${index}`}>{segment.value}</span>
-        }
+  return segments
+    .map((segment) => {
+      if (segment.kind === 'text') {
+        return escapeHtml(segment.value)
+      }
 
-        return (
-          <mark
-            key={`${segment.value}-${index}`}
-            className={`highlight-mark ${segment.tone}`}
-            title={segment.label}
-          >
-            {segment.value}
-          </mark>
-        )
-      })}
-    </p>
-  )
+      return `<mark class="highlight-mark ${segment.tone}" title="${escapeHtml(segment.label)}">${escapeHtml(segment.value)}</mark>`
+    })
+    .join('')
+}
+
+function normalizeEditorText(text: string) {
+  const normalized = text.replace(/\r/g, '').replace(/\u00a0/g, ' ')
+  return normalized.trim() ? normalized : ''
+}
+
+function getSelectionOffset(root: HTMLElement, node: Node, offset: number) {
+  const range = document.createRange()
+  range.selectNodeContents(root)
+  range.setEnd(node, offset)
+  return range.toString().length
+}
+
+function captureEditorSelection(root: HTMLElement): EditorSelection | null {
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0) {
+    return null
+  }
+
+  const anchorNode = selection.anchorNode
+  const focusNode = selection.focusNode
+  if (!anchorNode || !focusNode || !root.contains(anchorNode) || !root.contains(focusNode)) {
+    return null
+  }
+
+  const anchor = getSelectionOffset(root, anchorNode, selection.anchorOffset)
+  const focus = getSelectionOffset(root, focusNode, selection.focusOffset)
+
+  return anchor <= focus ? { start: anchor, end: focus } : { start: focus, end: anchor }
+}
+
+function locateTextPosition(root: HTMLElement, targetOffset: number) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  let currentOffset = 0
+  let node = walker.nextNode() as Text | null
+  let lastTextNode: Text | null = null
+
+  while (node) {
+    const nextOffset = currentOffset + node.data.length
+    lastTextNode = node
+
+    if (targetOffset <= nextOffset) {
+      return {
+        node,
+        offset: Math.max(0, targetOffset - currentOffset),
+      }
+    }
+
+    currentOffset = nextOffset
+    node = walker.nextNode() as Text | null
+  }
+
+  if (lastTextNode) {
+    return {
+      node: lastTextNode,
+      offset: lastTextNode.data.length,
+    }
+  }
+
+  return {
+    node: root,
+    offset: 0,
+  }
+}
+
+function restoreEditorSelection(root: HTMLElement, selection: EditorSelection) {
+  const browserSelection = window.getSelection()
+  if (!browserSelection) {
+    return
+  }
+
+  const range = document.createRange()
+  const start = locateTextPosition(root, selection.start)
+  const end = locateTextPosition(root, selection.end)
+
+  range.setStart(start.node, start.offset)
+  range.setEnd(end.node, end.offset)
+
+  browserSelection.removeAllRanges()
+  browserSelection.addRange(range)
+}
+
+function insertPlainTextIntoEditor(root: HTMLElement, text: string) {
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0) {
+    return false
+  }
+
+  const range = selection.getRangeAt(0)
+  range.deleteContents()
+  const node = document.createTextNode(text)
+  range.insertNode(node)
+  range.setStartAfter(node)
+  range.collapse(true)
+  selection.removeAllRanges()
+  selection.addRange(range)
+  root.focus()
+  return true
 }
 
 function RewriteIcon() {
@@ -837,6 +921,189 @@ function MicIcon() {
         fill="currentColor"
       />
     </svg>
+  )
+}
+
+function DraftEditor({
+  value,
+  highlights,
+  placeholder,
+  selectionRef,
+  onChange,
+  onScroll,
+}: {
+  value: string
+  highlights: HighlightSpan[]
+  placeholder: string
+  selectionRef: { current: EditorSelection | null }
+  onChange: (value: string) => void
+  onScroll?: (scrollTop: number) => void
+}) {
+  const editorRef = useRef<HTMLDivElement | null>(null)
+  const editorHtml = useMemo(() => renderEditorHtml(value, highlights), [highlights, value])
+
+  useLayoutEffect(() => {
+    const editor = editorRef.current
+    if (!editor) {
+      return
+    }
+
+    const nextSelection = selectionRef.current ?? { start: value.length, end: value.length }
+
+    if (editor.innerHTML !== editorHtml) {
+      editor.innerHTML = editorHtml
+    }
+
+    if (document.activeElement === editor) {
+      restoreEditorSelection(editor, nextSelection)
+    }
+  }, [editorHtml, selectionRef, value.length])
+
+  function saveSelection() {
+    const editor = editorRef.current
+    if (!editor) {
+      return
+    }
+
+    const selection = captureEditorSelection(editor)
+    if (selection) {
+      selectionRef.current = selection
+    }
+  }
+
+  function handleInput(event: FormEvent<HTMLDivElement>) {
+    const editor = event.currentTarget
+    selectionRef.current = captureEditorSelection(editor)
+    onChange(normalizeEditorText(editor.innerText))
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
+    event.preventDefault()
+    const text = event.clipboardData.getData('text/plain')
+
+    if (!text) {
+      return
+    }
+
+    const editor = event.currentTarget
+    if (!insertPlainTextIntoEditor(editor, text)) {
+      return
+    }
+
+    selectionRef.current = captureEditorSelection(editor)
+    onChange(normalizeEditorText(editor.innerText))
+  }
+
+  return (
+    <div
+      ref={editorRef}
+      className="text-input draft-input editor-textarea"
+      contentEditable
+      suppressContentEditableWarning
+      role="textbox"
+      aria-multiline="true"
+      data-placeholder={placeholder}
+      onInput={handleInput}
+      onPaste={handlePaste}
+      onKeyUp={saveSelection}
+      onMouseUp={saveSelection}
+      onFocus={saveSelection}
+      onScroll={(event) => {
+        onScroll?.(event.currentTarget.scrollTop)
+      }}
+      spellCheck
+      dangerouslySetInnerHTML={{ __html: editorHtml }}
+    />
+  )
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" className="icon-glyph">
+      <path d="M5.5 7.5 10 12l4.5-4.5 1.4 1.4L10 14.8 4.1 8.9z" fill="currentColor" />
+    </svg>
+  )
+}
+
+function AudienceDropdown({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: Array<{ value: Audience; label: string; helper: string }>
+  value: Audience
+  onChange: (value: Audience) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const current = options.find((option) => option.value === value) ?? options[0]
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    function onPointerDown(event: PointerEvent) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  return (
+    <div ref={rootRef} className="audience-picker">
+      <span>{label}</span>
+      <button
+        className="control audience-button"
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((previous) => !previous)}
+      >
+        <span className="audience-button-copy">
+          <span className="audience-button-label">{current.label}</span>
+          <span className="audience-button-helper">{current.helper}</span>
+        </span>
+        <ChevronDownIcon />
+      </button>
+
+      {open ? (
+        <div className="audience-menu" role="listbox" aria-label={label}>
+          {options.map((option) => (
+            <button
+              key={option.value}
+              className={`audience-option ${option.value === value ? 'selected' : ''}`}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              onClick={() => {
+                onChange(option.value)
+                setOpen(false)
+              }}
+            >
+              <span className="audience-option-label">{option.label}</span>
+              <span className="audience-option-helper">{option.helper}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -870,7 +1137,6 @@ async function postAssistant<T>(body: Record<string, unknown>, fallbackError: st
 export default function Page() {
   const [workingText, setWorkingText] = useState('')
   const [audience, setAudience] = useState<Audience>('other')
-  const [goal, setGoal] = useState('')
   const [voiceCommand, setVoiceCommand] = useState('')
   const [locale, setLocale] = useState<Locale>('en')
   const [version, setVersion] = useState(1)
@@ -884,11 +1150,11 @@ export default function Page() {
   const [copied, setCopied] = useState(false)
   const [clientId, setClientId] = useState('anonymous')
   const [speechSupported, setSpeechSupported] = useState(false)
-  const [editorScrollTop, setEditorScrollTop] = useState(0)
 
   const recognitionRef = useRef<SpeechRecognitionController | null>(null)
   const hydratedRef = useRef(false)
   const lastAnalyzedDraftRef = useRef('')
+  const editorSelectionRef = useRef<EditorSelection | null>(null)
   const copy = useMemo(() => getCopy(locale), [locale])
   const audienceOptions = useMemo(() => buildAudienceOptions(copy), [copy])
   const localeOptions = useMemo(
@@ -917,7 +1183,6 @@ export default function Page() {
     if (persisted) {
       setWorkingText(persisted.workingText)
       setAudience(persisted.audience)
-      setGoal(persisted.goal)
       setVoiceCommand(persisted.voiceCommand || '')
       setLocale(nextLocale)
       setVersion(Math.max(1, persistedVersion || 0))
@@ -965,7 +1230,6 @@ export default function Page() {
     const state: PersistedState = {
       workingText,
       audience,
-      goal,
       voiceCommand,
       locale,
       analysis,
@@ -983,7 +1247,6 @@ export default function Page() {
     audience,
     clientId,
     future,
-    goal,
     lastChangeNote,
     lastChanges,
     locale,
@@ -1052,15 +1315,6 @@ export default function Page() {
     }
   }
 
-  const recentHistory = [...past, currentSnapshot()]
-    .slice(-3)
-    .reverse()
-    .map((snapshot, index) => ({
-      ...snapshot,
-      isCurrent: index === 0,
-      preview: snapshot.draft.trim() || copy.status.startDraft,
-    }))
-
   function checkpoint(note: string) {
     setPast((existing) => [...existing, currentSnapshot(note)])
     setFuture([])
@@ -1076,7 +1330,6 @@ export default function Page() {
         mode: 'analyze',
         text: textToAnalyze,
         audience,
-        goal,
         locale,
         clientId,
         analysisContext: buildAnalysisContextPayload(analysis),
@@ -1085,6 +1338,10 @@ export default function Page() {
       setAnalysis(result)
 
       if (commitDraft) {
+        editorSelectionRef.current = {
+          start: result.suggestedText.length,
+          end: result.suggestedText.length,
+        }
         setWorkingText(result.suggestedText)
         lastAnalyzedDraftRef.current = result.suggestedText
       } else {
@@ -1129,7 +1386,6 @@ export default function Page() {
         mode: 'edit',
         text: source,
         audience,
-        goal,
         locale,
         instruction,
         clientId,
@@ -1137,6 +1393,10 @@ export default function Page() {
       }, copy.status.requestFailed)
 
       setVersion((current) => current + 1)
+      editorSelectionRef.current = {
+        start: result.updatedText.length,
+        end: result.updatedText.length,
+      }
       setWorkingText(result.updatedText)
       setLastChangeNote(result.note)
       setLastChanges(result.changes)
@@ -1158,6 +1418,10 @@ export default function Page() {
 
     setPast((existing) => existing.slice(0, -1))
     setFuture((existing) => [...existing, currentSnapshot()])
+    editorSelectionRef.current = {
+      start: previous.draft.length,
+      end: previous.draft.length,
+    }
     setWorkingText(previous.draft)
     setAnalysis(previous.analysis)
     setLastChangeNote(previous.note)
@@ -1175,6 +1439,10 @@ export default function Page() {
 
     setFuture((existing) => existing.slice(0, -1))
     setPast((existing) => [...existing, currentSnapshot()])
+    editorSelectionRef.current = {
+      start: next.draft.length,
+      end: next.draft.length,
+    }
     setWorkingText(next.draft)
     setAnalysis(next.analysis)
     setLastChangeNote(next.note)
@@ -1215,6 +1483,10 @@ export default function Page() {
       }
 
       checkpoint(copy.status.beforePaste)
+      editorSelectionRef.current = {
+        start: text.length,
+        end: text.length,
+      }
       setWorkingText(text)
       setLastChangeNote(copy.status.clipboardPasted)
       setLastChanges([])
@@ -1329,34 +1601,16 @@ export default function Page() {
           <label className="field editor-field">
             <span>{copy.fields.workingText}</span>
             <div className="editor-surface">
-              <div className="editor-backdrop" aria-hidden="true">
-                <div
-                  className="editor-highlight-layer"
-                  style={{ transform: `translateY(-${editorScrollTop}px)` }}
-                >
-                  {workingText ? (
-                    <HighlightedText
-                      text={workingText}
-                      highlights={editorHighlights}
-                      emptyLabel={copy.analysis.resultsPlaceholder}
-                    />
-                  ) : (
-                    <p className="editor-placeholder">{copy.placeholders.workingText}</p>
-                  )}
-                </div>
-              </div>
-              <textarea
-                className="text-input draft-input editor-textarea"
+              <DraftEditor
                 value={workingText}
-                onChange={(event) => {
-                  setWorkingText(event.target.value)
+                highlights={editorHighlights}
+                placeholder={copy.placeholders.workingText}
+                selectionRef={editorSelectionRef}
+                onChange={(nextValue) => {
+                  setWorkingText(nextValue)
                   setError(null)
                   setLastChanges([])
                 }}
-                onScroll={(event) => {
-                  setEditorScrollTop(event.currentTarget.scrollTop)
-                }}
-                placeholder={copy.placeholders.workingText}
               />
             </div>
           </label>
@@ -1397,32 +1651,13 @@ export default function Page() {
           </div>
         </div>
 
-        <div className="control-grid">
-          <label className="field">
-            <span>{copy.fields.audience}</span>
-            <select
-              className="control"
-              value={audience}
-              onChange={(event) => setAudience(event.target.value as Audience)}
-            >
-              {audienceOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label} - {option.helper}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field">
-            <span>{copy.fields.goal}</span>
-            <textarea
-              className="control compact-textarea"
-              value={goal}
-              onChange={(event) => setGoal(event.target.value)}
-              placeholder={copy.placeholders.goal}
-              rows={2}
-            />
-          </label>
+        <div className="audience-row">
+          <AudienceDropdown
+            label={copy.fields.audience}
+            options={audienceOptions}
+            value={audience}
+            onChange={setAudience}
+          />
         </div>
 
         <div className="button-grid">
@@ -1495,61 +1730,10 @@ export default function Page() {
           {analysis ? (
             <div className="analysis-reasons">
               <p className="analysis-reasons-label">{copy.panel.reasons}</p>
-              <ul className="reason-list">
-                {analysis.reasons.map((reason) => (
-                  <li key={reason}>{reason}</li>
-                ))}
-              </ul>
+              <p className="reason-text">{analysis.reason}</p>
             </div>
           ) : null}
         </section>
-
-        {past.length || lastChanges.length || future.length ? (
-          <section className="analysis-card version-card" aria-live="polite">
-            <div className="analysis-topline">
-              <span className="verdict-pill neutral">
-                {copy.changes.title}
-              </span>
-            </div>
-            <div className="history-list">
-              {recentHistory.map((entry) => (
-                <article
-                  key={`${entry.version}-${entry.note}-${entry.preview}`}
-                  className={`history-entry ${entry.isCurrent ? 'current' : ''}`}
-                >
-                  <div className="history-entry-topline">
-                    <span className="history-entry-version">
-                      v{entry.version} {entry.isCurrent ? `· ${copy.panel.current}` : ''}
-                    </span>
-                    <span className="history-entry-note">{entry.note || copy.panel.ready}</span>
-                  </div>
-                  {entry.changes.length ? (
-                    <ul className="change-list">
-                      {entry.changes.map((change, index) => (
-                        <li key={`${entry.version}-${change.summary}-${index}`} className="change-item">
-                          <p className="change-summary">{change.summary}</p>
-                          <div className="change-span-row">
-                            <span className="change-chip change-from">
-                              <span className="change-chip-label">{copy.changes.from}</span>
-                              <span>{change.before || '—'}</span>
-                            </span>
-                            <span className="change-arrow">→</span>
-                            <span className="change-chip change-to">
-                              <span className="change-chip-label">{copy.changes.to}</span>
-                              <span>{change.after || '—'}</span>
-                            </span>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="history-entry-preview">{entry.preview}</p>
-                  )}
-                </article>
-              ))}
-            </div>
-          </section>
-        ) : null}
 
       </section>
     </main>
