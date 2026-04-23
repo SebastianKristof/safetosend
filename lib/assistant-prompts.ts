@@ -19,17 +19,16 @@ const languageName = {
 } as const
 
 const languageInstruction = {
-  en: 'Use English for explanations and change notes. Keep the draft text in English.',
-  ru: 'Используй русский для пояснений и описания изменений. Текст черновика оставляй на английском.',
-  es: 'Usa espanol para las explicaciones y las notas de cambios. Mantén el texto del borrador en ingles.',
-  de: 'Verwende Deutsch fuer Erklaerungen und Aenderungsnotizen. Halte den Entwurfstext auf Englisch.',
-  fr: 'Utilise le francais pour les explications et les notes de modification. Garde le texte du brouillon en anglais.',
+  en: 'Use English for explanations, summaries, and change labels.',
+  ru: 'Используй русский для пояснений, сводок и подписей изменений.',
+  es: 'Usa el español para explicaciones, resúmenes y etiquetas de cambios.',
+  de: 'Verwende Deutsch für Erklärungen, Zusammenfassungen und Änderungslabels.',
+  fr: 'Utilise le français pour les explications, les résumés et les libellés de changement.',
 } as const
 
 type PromptBundle = {
   analyzeSystem: string
   analyzeUser: string
-  transformSystem: string
   editUser: string
 }
 
@@ -45,14 +44,12 @@ export async function getPromptBundle() {
     promptBundlePromise = Promise.all([
       readPrompt('prompts/analyze-system.md'),
       readPrompt('prompts/analyze-user.md'),
-      readPrompt('prompts/transform-system.md'),
       readPrompt('prompts/edit-user.md'),
     ]).then(
-      ([analyzeSystem, analyzeUser, transformSystem, editUser]) =>
+      ([analyzeSystem, analyzeUser, editUser]) =>
         ({
           analyzeSystem,
           analyzeUser,
-          transformSystem,
           editUser,
         }) satisfies PromptBundle,
     )
@@ -102,6 +99,7 @@ function buildAnalysisContext(request: AssistantRequest) {
     context.verdict ? `Previous verdict: ${context.verdict}` : '',
     context.inferredGoal ? `Previous inferred goal: ${context.inferredGoal}` : '',
     context.reason ? `Previous reason: ${context.reason}` : '',
+    context.recommendedTone ? `Previous recommended tone: ${context.recommendedTone}` : '',
   ].filter(Boolean)
 
   return parts.length ? `Context: ${parts.join(' / ')}` : ''
@@ -112,5 +110,6 @@ export function summarizeAnalysisForContext(result: AnalysisResponse) {
     verdict: result.verdict,
     reason: result.reason,
     inferredGoal: result.inferredGoal,
+    recommendedTone: result.recommendedTone,
   }
 }

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import {
   analysisResponseSchema,
   assistantRequestSchema,
-  transformResponseSchema,
+  editResponseSchema,
 } from '@/lib/assistant-contracts'
 import { getInferenceConfig, resolveInferenceModel } from '@/lib/inference-config'
 import {
@@ -111,10 +111,9 @@ export async function POST(request: Request) {
 
     const result = await generateText({
       model,
-      system: prompts.transformSystem,
       prompt: buildEditPrompt(payload, prompts.editUser),
       output: Output.object({
-        schema: transformResponseSchema,
+        schema: editResponseSchema,
       }),
       temperature: 0.35,
       maxOutputTokens: 320,

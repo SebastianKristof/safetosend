@@ -14,15 +14,15 @@ import {
 import type {
   AnalysisResponse,
   Audience,
+  EditChange,
+  EditResponse,
   Locale,
-  TransformChange,
-  TransformResponse,
   Verdict,
 } from '@/lib/assistant-contracts'
 import type { DraftSnapshot } from '@/lib/assistant-client'
 import { useAudioRecorder } from '@/hooks/use-audio-recorder'
 
-const STORAGE_KEY = 'safetosend.app.state.v3'
+const STORAGE_KEY = 'safetosend.app.state.v4'
 
 const UI_COPY = {
   en: {
@@ -37,7 +37,6 @@ const UI_COPY = {
       ready: 'Ready',
       resultsPlaceholder: 'Results appear here after you check or rewrite the message.',
       likelyIntent: 'Likely intent',
-      confidence: 'Confidence',
       reasons: 'Reason',
       changes: 'What changed',
       history: 'Recent history',
@@ -104,7 +103,7 @@ const UI_COPY = {
     },
     analysis: {
       likelyIntent: 'Likely intent',
-      confidence: 'Confidence',
+      tone: 'Recommended tone',
       resultsPlaceholder: 'Results appear here after you check or rewrite the message.',
       analysisHighlights: 'Questionable parts',
       rewriteHighlights: 'Rewritten parts',
@@ -149,7 +148,6 @@ const UI_COPY = {
       ready: 'Готово',
       resultsPlaceholder: 'Результат появится после проверки или правки сообщения.',
       likelyIntent: 'Вероятная цель',
-      confidence: 'Уверенность',
       reasons: 'Причина',
       changes: 'Что изменилось',
       history: 'Последние версии',
@@ -216,7 +214,7 @@ const UI_COPY = {
     },
     analysis: {
       likelyIntent: 'Вероятная цель',
-      confidence: 'Уверенность',
+      tone: 'Рекомендуемый тон',
       resultsPlaceholder: 'Результат появится после проверки или правки сообщения.',
       analysisHighlights: 'Проблемные места',
       rewriteHighlights: 'Переписанные фрагменты',
@@ -261,7 +259,6 @@ const UI_COPY = {
       ready: 'Listo',
       resultsPlaceholder: 'Los resultados aparecen aqui despues de revisar o reescribir el mensaje.',
       likelyIntent: 'Intencion probable',
-      confidence: 'Confianza',
       reasons: 'Motivo',
       changes: 'Que cambio',
       history: 'Historial reciente',
@@ -328,7 +325,7 @@ const UI_COPY = {
     },
     analysis: {
       likelyIntent: 'Intencion probable',
-      confidence: 'Confianza',
+      tone: 'Tono recomendado',
       resultsPlaceholder: 'Los resultados aparecen aqui despues de revisar o reescribir el mensaje.',
       analysisHighlights: 'Partes cuestionables',
       rewriteHighlights: 'Partes reescritas',
@@ -373,7 +370,6 @@ const UI_COPY = {
       ready: 'Bereit',
       resultsPlaceholder: 'Die Ergebnisse erscheinen hier nach der Pruefung oder Ueberarbeitung der Nachricht.',
       likelyIntent: 'Wahrscheinliche Absicht',
-      confidence: 'Sicherheit',
       reasons: 'Grund',
       changes: 'Was sich geaendert hat',
       history: 'Letzte Versionen',
@@ -440,7 +436,7 @@ const UI_COPY = {
     },
     analysis: {
       likelyIntent: 'Wahrscheinliche Absicht',
-      confidence: 'Sicherheit',
+      tone: 'Empfohlener Ton',
       resultsPlaceholder: 'Die Ergebnisse erscheinen hier nach der Pruefung oder Ueberarbeitung der Nachricht.',
       analysisHighlights: 'Fragliche Stellen',
       rewriteHighlights: 'Ueberarbeitete Stellen',
@@ -485,7 +481,6 @@ const UI_COPY = {
       ready: 'Pret',
       resultsPlaceholder: 'Les resultats apparaissent ici apres la verification ou la reecriture du message.',
       likelyIntent: 'Intention probable',
-      confidence: 'Confiance',
       reasons: 'Raison',
       changes: 'Ce qui a change',
       history: 'Historique recent',
@@ -552,7 +547,7 @@ const UI_COPY = {
     },
     analysis: {
       likelyIntent: 'Intention probable',
-      confidence: 'Confiance',
+      tone: 'Tonalite recommandee',
       resultsPlaceholder: 'Les resultats apparaissent ici apres la verification ou la reecriture du message.',
       analysisHighlights: 'Passages delicats',
       rewriteHighlights: 'Passages reecrits',
@@ -599,7 +594,7 @@ type PersistedState = {
   past: DraftSnapshot[]
   future: DraftSnapshot[]
   lastChangeNote: string
-  lastChanges?: TransformChange[]
+  lastChanges?: EditChange[]
   clientId: string
 }
 
@@ -669,6 +664,7 @@ function buildAnalysisContextPayload(analysis: AnalysisResponse | null) {
     verdict: verdictIsCurrent ? verdict : undefined,
     reason: analysis.reason,
     inferredGoal: analysis.inferredGoal,
+    recommendedTone: analysis.recommendedTone,
   }
 }
 
@@ -1193,7 +1189,7 @@ export default function Page() {
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
   const [past, setPast] = useState<DraftSnapshot[]>([])
   const [future, setFuture] = useState<DraftSnapshot[]>([])
-  const [lastChanges, setLastChanges] = useState<TransformChange[]>([])
+  const [lastChanges, setLastChanges] = useState<EditChange[]>([])
   const [lastChangeNote, setLastChangeNote] = useState('')
   const [status, setStatus] = useState<'idle' | 'analyzing' | 'rewriting'>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -1367,8 +1363,12 @@ export default function Page() {
     setFuture([])
   }
 
-  async function analyzeCurrentDraft(textToAnalyze: string, options?: { commitDraft?: boolean }) {
+  async function analyzeCurrentDraft(
+    textToAnalyze: string,
+    options?: { commitDraft?: boolean; preserveNote?: boolean },
+  ) {
     const commitDraft = options?.commitDraft ?? false
+    const preserveNote = options?.preserveNote ?? false
     setStatus('analyzing')
     setError(null)
 
@@ -1395,7 +1395,9 @@ export default function Page() {
         lastAnalyzedDraftRef.current = textToAnalyze
       }
 
-      setLastChangeNote(copy.status.analysisUpdated)
+      if (!preserveNote) {
+        setLastChangeNote(copy.status.analysisUpdated)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : copy.status.analysisFailed)
     } finally {
@@ -1429,7 +1431,7 @@ export default function Page() {
     setError(null)
 
     try {
-      const result = await postAssistant<TransformResponse>({
+      const result = await postAssistant<EditResponse>({
         mode: 'edit',
         text: source,
         audience,
@@ -1446,10 +1448,10 @@ export default function Page() {
       }
       setWorkingText(result.updatedText)
       setVoiceCommand('')
-      setLastChangeNote(result.note)
+      setLastChangeNote(result.changes.map((change) => change.summary).join(' · ') || copy.status.analysisUpdated)
       setLastChanges(result.changes)
       lastAnalyzedDraftRef.current = result.updatedText
-      await analyzeCurrentDraft(result.updatedText)
+      await analyzeCurrentDraft(result.updatedText, { preserveNote: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : copy.status.rewriteFailed)
       setStatus('idle')
@@ -1787,8 +1789,8 @@ export default function Page() {
           </div>
           <p className="analysis-meta">
             {analysis
-              ? `${copy.analysis.likelyIntent}: ${analysis.inferredGoal} · ${copy.analysis.confidence} ${Math.round(analysis.confidence * 100)}%`
-              : copy.analysis.resultsPlaceholder}
+            ? `${copy.analysis.likelyIntent}: ${analysis.inferredGoal} · ${copy.analysis.tone}: ${analysis.recommendedTone}`
+            : copy.analysis.resultsPlaceholder}
           </p>
           {analysis ? (
             <div className="analysis-reasons">
