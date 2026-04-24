@@ -36,6 +36,7 @@ Text that is or can be perceived as:
 - too indirect when a clear ask is needed
 - too harsh when cooperation is needed
 - too soft when healthy firmness is needed
+- contains pieces that do not belong, i.e. copy-paste artifacts or formatting
 
 # GOOD TEXT - WHAT TO PRODUCE
 Rewrite to produce text that:

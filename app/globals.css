@@ -301,6 +301,21 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.editor-overlay.analysis-layer {
+  z-index: 0;
+}
+
+.editor-overlay.rewrite-layer {
+  z-index: 1;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.editor-overlay.rewrite-layer .highlight-mark {
+  color: var(--text);
+  -webkit-text-fill-color: var(--text);
+}
+
 .editor-overlay::-webkit-scrollbar {
   display: none;
 }
@@ -359,7 +374,7 @@ h2 {
 
 .editor-textarea {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   width: 100%;
   min-width: 0;
   min-height: clamp(9rem, 24svh, 14rem);
@@ -405,16 +420,17 @@ h2 {
   -webkit-box-decoration-break: clone;
 }
 
-.highlight-mark.yellow {
-  background: #f6ecbf;
+.highlight-mark.analysis.yellow {
+  background: rgba(246, 236, 191, 0.86);
 }
 
-.highlight-mark.red {
-  background: #f5d9db;
+.highlight-mark.analysis.red {
+  background: rgba(245, 217, 219, 0.88);
 }
 
-.highlight-mark.green {
-  background: #dff0e3;
+.highlight-mark.rewrite.green {
+  background: rgba(223, 240, 227, 0.42);
+  box-shadow: inset 0 -1px 0 rgba(73, 196, 106, 0.85);
 }
 
 .edit-input {

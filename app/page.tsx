@@ -827,7 +827,7 @@ function buildHighlightSegments(text: string, highlights: HighlightSpan[]) {
   return pieces
 }
 
-function renderEditorHtml(text: string, highlights: HighlightSpan[]) {
+function renderEditorHtml(text: string, highlights: HighlightSpan[], layer: 'analysis' | 'rewrite') {
   const segments = buildHighlightSegments(text, highlights)
 
   if (!segments.length) {
@@ -840,7 +840,7 @@ function renderEditorHtml(text: string, highlights: HighlightSpan[]) {
         return escapeHtml(segment.value)
       }
 
-      return `<mark class="highlight-mark ${segment.tone}" title="${escapeHtml(segment.label)}">${escapeHtml(segment.value)}</mark>`
+      return `<mark class="highlight-mark ${layer} ${segment.tone}" title="${escapeHtml(segment.label)}">${escapeHtml(segment.value)}</mark>`
     })
     .join('')
 }
@@ -881,29 +881,35 @@ function StopGlyph() {
 
 function DraftEditor({
   value,
-  highlights,
+  analysisHighlights,
+  rewriteHighlights,
   placeholder,
   selectionRef,
   onChange,
 }: {
   value: string
-  highlights: HighlightSpan[]
+  analysisHighlights: HighlightSpan[]
+  rewriteHighlights: HighlightSpan[]
   placeholder: string
   selectionRef: { current: EditorSelection | null }
   onChange: (value: string) => void
 }) {
   const editorRef = useRef<HTMLTextAreaElement | null>(null)
-  const overlayRef = useRef<HTMLDivElement | null>(null)
-  const editorHtml = useMemo(() => renderEditorHtml(value, highlights), [highlights, value])
+  const analysisOverlayRef = useRef<HTMLDivElement | null>(null)
+  const rewriteOverlayRef = useRef<HTMLDivElement | null>(null)
+  const analysisHtml = useMemo(() => renderEditorHtml(value, analysisHighlights, 'analysis'), [analysisHighlights, value])
+  const rewriteHtml = useMemo(() => renderEditorHtml(value, rewriteHighlights, 'rewrite'), [rewriteHighlights, value])
 
   useLayoutEffect(() => {
     const editor = editorRef.current
-    const overlay = overlayRef.current
-    if (!editor || !overlay) {
+    const analysisOverlay = analysisOverlayRef.current
+    const rewriteOverlay = rewriteOverlayRef.current
+    if (!editor || !analysisOverlay || !rewriteOverlay) {
       return
     }
 
-    overlay.scrollTop = editor.scrollTop
+    analysisOverlay.scrollTop = editor.scrollTop
+    rewriteOverlay.scrollTop = editor.scrollTop
 
     if (selectionRef.current) {
       const nextSelection = selectionRef.current
@@ -914,15 +920,21 @@ function DraftEditor({
       }
       selectionRef.current = null
     }
-  }, [selectionRef, value, editorHtml])
+  }, [analysisHtml, rewriteHtml, selectionRef, value])
 
   return (
     <div className="editor-layer">
       <div
-        ref={overlayRef}
-        className="editor-overlay"
+        ref={analysisOverlayRef}
+        className="editor-overlay analysis-layer"
         aria-hidden="true"
-        dangerouslySetInnerHTML={{ __html: editorHtml }}
+        dangerouslySetInnerHTML={{ __html: analysisHtml }}
+      />
+      <div
+        ref={rewriteOverlayRef}
+        className="editor-overlay rewrite-layer"
+        aria-hidden="true"
+        dangerouslySetInnerHTML={{ __html: rewriteHtml }}
       />
       <textarea
         ref={editorRef}
@@ -930,8 +942,11 @@ function DraftEditor({
         value={value}
         onChange={(event) => onChange(normalizeEditorText(event.currentTarget.value))}
         onScroll={(event) => {
-          if (overlayRef.current) {
-            overlayRef.current.scrollTop = event.currentTarget.scrollTop
+          if (analysisOverlayRef.current) {
+            analysisOverlayRef.current.scrollTop = event.currentTarget.scrollTop
+          }
+          if (rewriteOverlayRef.current) {
+            rewriteOverlayRef.current.scrollTop = event.currentTarget.scrollTop
           }
         }}
         placeholder={placeholder}
@@ -1193,27 +1208,26 @@ export default function Page() {
     return verdictStyle(analysis.verdict)
   }, [analysis])
   const draftIsStale = Boolean(analysis) && workingText.trim() !== lastAnalyzedDraftRef.current.trim()
-  const editorHighlights = useMemo<HighlightSpan[]>(() => {
-    if (lastChanges.length) {
-      return lastChanges
-        .filter((change) => change.after.trim())
-        .map((change) => ({
-          text: change.after,
-          tone: 'green' as const,
-          label: change.summary,
-        }))
+  const analysisHighlights = useMemo<HighlightSpan[]>(() => {
+    if (draftIsStale || !analysis?.highlights?.length) {
+      return []
     }
 
-    if (!draftIsStale && analysis?.highlights?.length) {
-      return analysis.highlights.map((highlight) => ({
-        text: highlight.text,
-        tone: highlight.severity,
-        label: highlight.reason,
+    return analysis.highlights.map((highlight) => ({
+      text: highlight.text,
+      tone: highlight.severity,
+      label: highlight.reason,
+    }))
+  }, [analysis, draftIsStale])
+  const rewriteHighlights = useMemo<HighlightSpan[]>(() => {
+    return lastChanges
+      .filter((change) => change.after.trim())
+      .map((change) => ({
+        text: change.after,
+        tone: 'green' as const,
+        label: change.summary,
       }))
-    }
-
-    return []
-  }, [analysis, draftIsStale, lastChanges])
+  }, [lastChanges])
   const statusText = isTranscribing
     ? copy.status.transcribing
     : isRecording || isStarting
@@ -1523,7 +1537,8 @@ export default function Page() {
             <div className="editor-surface">
               <DraftEditor
                 value={workingText}
-                highlights={editorHighlights}
+                analysisHighlights={analysisHighlights}
+                rewriteHighlights={rewriteHighlights}
                 placeholder={copy.placeholders.workingText}
                 selectionRef={editorSelectionRef}
                 onChange={(nextValue) => {
