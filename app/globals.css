@@ -276,6 +276,35 @@ h2 {
     0 0 0 3px rgba(109, 141, 184, 0.1);
 }
 
+.editor-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.editor-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  padding: var(--editor-pad-y) var(--editor-pad-x);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--editor-font-size);
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: var(--editor-line-height);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.editor-overlay::-webkit-scrollbar {
+  display: none;
+}
+
 .history-rail {
   display: grid;
   gap: 6px;
@@ -337,7 +366,7 @@ h2 {
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--text);
+  color: transparent;
   caret-color: var(--text);
   padding: var(--editor-pad-y) var(--editor-pad-x);
   font-family: inherit;
@@ -347,9 +376,11 @@ h2 {
   line-height: var(--editor-line-height);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  overflow: auto;
   outline: none;
   cursor: text;
   display: block;
+  -webkit-text-fill-color: transparent;
 }
 
 .editor-textarea:focus {
@@ -361,17 +392,17 @@ h2 {
   color: var(--soft);
 }
 
-.editor-textarea:empty::before {
-  content: attr(data-placeholder);
-  color: var(--soft);
-  pointer-events: none;
+.editor-textarea::selection {
+  background: rgba(109, 141, 184, 0.18);
 }
 
 .highlight-mark {
-  padding: 0 3px;
+  padding: 0;
   border-radius: 4px;
   color: inherit;
   background: transparent;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 .highlight-mark.yellow {

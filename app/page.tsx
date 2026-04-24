@@ -7,8 +7,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type ClipboardEvent,
-  type FormEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import type {
@@ -848,102 +846,7 @@ function renderEditorHtml(text: string, highlights: HighlightSpan[]) {
 }
 
 function normalizeEditorText(text: string) {
-  const normalized = text.replace(/\r/g, '').replace(/\u00a0/g, ' ')
-  return normalized.trim() ? normalized : ''
-}
-
-function getSelectionOffset(root: HTMLElement, node: Node, offset: number) {
-  const range = document.createRange()
-  range.selectNodeContents(root)
-  range.setEnd(node, offset)
-  return range.toString().length
-}
-
-function captureEditorSelection(root: HTMLElement): EditorSelection | null {
-  const selection = window.getSelection()
-  if (!selection || selection.rangeCount === 0) {
-    return null
-  }
-
-  const anchorNode = selection.anchorNode
-  const focusNode = selection.focusNode
-  if (!anchorNode || !focusNode || !root.contains(anchorNode) || !root.contains(focusNode)) {
-    return null
-  }
-
-  const anchor = getSelectionOffset(root, anchorNode, selection.anchorOffset)
-  const focus = getSelectionOffset(root, focusNode, selection.focusOffset)
-
-  return anchor <= focus ? { start: anchor, end: focus } : { start: focus, end: anchor }
-}
-
-function locateTextPosition(root: HTMLElement, targetOffset: number) {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-  let currentOffset = 0
-  let node = walker.nextNode() as Text | null
-  let lastTextNode: Text | null = null
-
-  while (node) {
-    const nextOffset = currentOffset + node.data.length
-    lastTextNode = node
-
-    if (targetOffset <= nextOffset) {
-      return {
-        node,
-        offset: Math.max(0, targetOffset - currentOffset),
-      }
-    }
-
-    currentOffset = nextOffset
-    node = walker.nextNode() as Text | null
-  }
-
-  if (lastTextNode) {
-    return {
-      node: lastTextNode,
-      offset: lastTextNode.data.length,
-    }
-  }
-
-  return {
-    node: root,
-    offset: 0,
-  }
-}
-
-function restoreEditorSelection(root: HTMLElement, selection: EditorSelection) {
-  const browserSelection = window.getSelection()
-  if (!browserSelection) {
-    return
-  }
-
-  const range = document.createRange()
-  const start = locateTextPosition(root, selection.start)
-  const end = locateTextPosition(root, selection.end)
-
-  range.setStart(start.node, start.offset)
-  range.setEnd(end.node, end.offset)
-
-  browserSelection.removeAllRanges()
-  browserSelection.addRange(range)
-}
-
-function insertPlainTextIntoEditor(root: HTMLElement, text: string) {
-  const selection = window.getSelection()
-  if (!selection || selection.rangeCount === 0) {
-    return false
-  }
-
-  const range = selection.getRangeAt(0)
-  range.deleteContents()
-  const node = document.createTextNode(text)
-  range.insertNode(node)
-  range.setStartAfter(node)
-  range.collapse(true)
-  selection.removeAllRanges()
-  selection.addRange(range)
-  root.focus()
-  return true
+  return text.replace(/\r/g, '').replace(/\u00a0/g, ' ')
 }
 
 function RewriteIcon() {
@@ -982,90 +885,59 @@ function DraftEditor({
   placeholder,
   selectionRef,
   onChange,
-  onScroll,
 }: {
   value: string
   highlights: HighlightSpan[]
   placeholder: string
   selectionRef: { current: EditorSelection | null }
   onChange: (value: string) => void
-  onScroll?: (scrollTop: number) => void
 }) {
-  const editorRef = useRef<HTMLDivElement | null>(null)
+  const editorRef = useRef<HTMLTextAreaElement | null>(null)
+  const overlayRef = useRef<HTMLDivElement | null>(null)
   const editorHtml = useMemo(() => renderEditorHtml(value, highlights), [highlights, value])
 
   useLayoutEffect(() => {
     const editor = editorRef.current
-    if (!editor) {
+    const overlay = overlayRef.current
+    if (!editor || !overlay) {
       return
     }
 
-    const nextSelection = selectionRef.current ?? { start: value.length, end: value.length }
+    overlay.scrollTop = editor.scrollTop
 
-    if (editor.innerHTML !== editorHtml) {
-      editor.innerHTML = editorHtml
+    if (selectionRef.current) {
+      const nextSelection = selectionRef.current
+      try {
+        editor.setSelectionRange(nextSelection.start, nextSelection.end)
+      } catch {
+        // ignore selection restore issues on mobile/browser edge cases
+      }
+      selectionRef.current = null
     }
-
-    if (document.activeElement === editor) {
-      restoreEditorSelection(editor, nextSelection)
-    }
-  }, [editorHtml, selectionRef, value.length])
-
-  function saveSelection() {
-    const editor = editorRef.current
-    if (!editor) {
-      return
-    }
-
-    const selection = captureEditorSelection(editor)
-    if (selection) {
-      selectionRef.current = selection
-    }
-  }
-
-  function handleInput(event: FormEvent<HTMLDivElement>) {
-    const editor = event.currentTarget
-    selectionRef.current = captureEditorSelection(editor)
-    onChange(normalizeEditorText(editor.innerText))
-  }
-
-  function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
-    event.preventDefault()
-    const text = event.clipboardData.getData('text/plain')
-
-    if (!text) {
-      return
-    }
-
-    const editor = event.currentTarget
-    if (!insertPlainTextIntoEditor(editor, text)) {
-      return
-    }
-
-    selectionRef.current = captureEditorSelection(editor)
-    onChange(normalizeEditorText(editor.innerText))
-  }
+  }, [selectionRef, value, editorHtml])
 
   return (
-    <div
-      ref={editorRef}
-      className="text-input draft-input editor-textarea"
-      contentEditable
-      suppressContentEditableWarning
-      role="textbox"
-      aria-multiline="true"
-      data-placeholder={placeholder}
-      onInput={handleInput}
-      onPaste={handlePaste}
-      onKeyUp={saveSelection}
-      onMouseUp={saveSelection}
-      onFocus={saveSelection}
-      onScroll={(event) => {
-        onScroll?.(event.currentTarget.scrollTop)
-      }}
-      spellCheck
-      dangerouslySetInnerHTML={{ __html: editorHtml }}
-    />
+    <div className="editor-layer">
+      <div
+        ref={overlayRef}
+        className="editor-overlay"
+        aria-hidden="true"
+        dangerouslySetInnerHTML={{ __html: editorHtml }}
+      />
+      <textarea
+        ref={editorRef}
+        className="text-input draft-input editor-textarea"
+        value={value}
+        onChange={(event) => onChange(normalizeEditorText(event.currentTarget.value))}
+        onScroll={(event) => {
+          if (overlayRef.current) {
+            overlayRef.current.scrollTop = event.currentTarget.scrollTop
+          }
+        }}
+        placeholder={placeholder}
+        spellCheck
+      />
+    </div>
   )
 }
 
