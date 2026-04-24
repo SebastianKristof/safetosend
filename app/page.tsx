@@ -131,6 +131,7 @@ const UI_COPY = {
       pasteFailed: 'Paste failed.',
       dictationUnsupported: 'Voice capture is not available in this browser.',
       dictationFailed: 'Voice capture failed',
+      voiceTooShort: 'Hold a little longer to record.',
       couldNotStart: 'Could not start recording.',
     },
   },
@@ -242,6 +243,7 @@ const UI_COPY = {
       pasteFailed: 'Не удалось вставить текст.',
       dictationUnsupported: 'Голосовая запись недоступна в этом браузере.',
       dictationFailed: 'Не удалось распознать голос',
+      voiceTooShort: 'Подержите кнопку чуть дольше, чтобы записать.',
       couldNotStart: 'Не удалось начать запись.',
     },
   },
@@ -353,6 +355,7 @@ const UI_COPY = {
       pasteFailed: 'No se pudo pegar el texto.',
       dictationUnsupported: 'La captura de voz no esta disponible en este navegador.',
       dictationFailed: 'La captura de voz fallo',
+      voiceTooShort: 'Mantén pulsado un poco más para grabar.',
       couldNotStart: 'No se pudo iniciar la grabacion.',
     },
   },
@@ -464,6 +467,7 @@ const UI_COPY = {
       pasteFailed: 'Der Text konnte nicht eingefuegt werden.',
       dictationUnsupported: 'Sprachaufnahme ist in diesem Browser nicht verfuegbar.',
       dictationFailed: 'Sprachaufnahme fehlgeschlagen',
+      voiceTooShort: 'Zum Aufnehmen etwas laenger gedrueckt halten.',
       couldNotStart: 'Aufnahme konnte nicht gestartet werden.',
     },
   },
@@ -575,6 +579,7 @@ const UI_COPY = {
       pasteFailed: 'Impossible de coller le texte.',
       dictationUnsupported: "La capture vocale n'est pas disponible dans ce navigateur.",
       dictationFailed: 'La capture vocale a echoue',
+      voiceTooShort: 'Maintiens un peu plus longtemps pour enregistrer.',
       couldNotStart: "Impossible de demarrer l enregistrement.",
     },
   },
@@ -695,6 +700,7 @@ function defaultRewriteInstruction(locale: Locale) {
 }
 
 const MAX_RECORDING_SECONDS = 60
+const MIN_TRANSCRIPTION_BYTES = 1200
 
 function mergeTranscribedText(existing: string, transcript: string) {
   const normalizedTranscript = transcript.trim()
@@ -1447,6 +1453,11 @@ export default function Page() {
       return
     }
 
+    if (blob.size < MIN_TRANSCRIPTION_BYTES) {
+      setError(copy.errors.voiceTooShort)
+      return
+    }
+
     setIsTranscribing(true)
     try {
       const transcript = await transcribeBlob(blob)
@@ -1459,7 +1470,14 @@ export default function Page() {
       setIsTranscribing(false)
       setError(err instanceof Error ? err.message : copy.errors.dictationFailed)
     }
-  }, [copy.errors.couldNotStart, copy.errors.dictationFailed, copy.status.voiceCommandCaptured, runRewrite, stop])
+  }, [
+    copy.errors.couldNotStart,
+    copy.errors.dictationFailed,
+    copy.errors.voiceTooShort,
+    copy.status.voiceCommandCaptured,
+    runRewrite,
+    stop,
+  ])
 
   const startVoiceCapture = useCallback(
     async (event: ReactPointerEvent<HTMLButtonElement>) => {
