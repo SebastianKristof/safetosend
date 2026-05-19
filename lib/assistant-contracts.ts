@@ -61,6 +61,7 @@ export const assistantRequestSchema = z
         reason: z.string().optional(),
         inferredGoal: z.string().optional(),
         recommendedTone: z.string().optional(),
+        highlights: z.array(analysisHighlightSchema).max(5).optional(),
       })
       .strict()
       .optional(),

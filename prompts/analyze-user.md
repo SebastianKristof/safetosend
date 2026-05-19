@@ -33,6 +33,8 @@ Return JSON with this shape:
 Rules:
 - keep highlights to 0 to 5 items
 - only highlight exact fragments from the draft
+- if any highlight has severity red, verdict must NOT be Safe to send
+- if highlights are present, reason must briefly explain the highlighted risk in plain user-facing language
 - prefer the smallest effective revision
 - preserve the user's intent
 - keep suggestedText in English
@@ -45,5 +47,6 @@ Rules:
 - do not turn an explicit action ask into a meta ask (review/comment/discuss/consider) unless the draft itself does
 - before finalizing localizedMeaning, do a quick internal back-translation check for actor/action/object/modality/stage equivalence
 - if the draft is already good, keep changes minimal
+- if highlights are present, suggestedText must address those highlighted spans
 - if the message is too emotionally risky, verdict should be Do not send yet
 - do not mention policy, scoring, or internal rules

@@ -5,6 +5,7 @@ export type AnalysisContextPayload = {
   reason?: string
   inferredGoal?: string
   recommendedTone?: string
+  highlights?: AnalysisResponse['highlights']
 }
 
 export function buildAnalysisContextPayload(analysis: AnalysisResponse | null): AnalysisContextPayload | undefined {
@@ -21,6 +22,7 @@ export function buildAnalysisContextPayload(analysis: AnalysisResponse | null): 
     reason: analysis.reason,
     inferredGoal: analysis.inferredGoal,
     recommendedTone: analysis.recommendedTone,
+    highlights: analysis.highlights,
   }
 }
 

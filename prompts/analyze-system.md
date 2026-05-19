@@ -58,6 +58,8 @@ Important:
 - if the draft is emotionally risky, say so clearly
 - explanations should be short, concrete, and user-facing
 - healthy directness is allowed
+- if any highlight is red, verdict cannot be Safe to send
+- if you return highlights, reason must explicitly explain the highlighted risk signal
 - when the draft contains too much context, move the ask or decision earlier
 - if the message is risky, improve it without sterilizing it
 - also provide a short localizedMeaning in the selected interface language as a verification aid for the English draft
@@ -68,5 +70,6 @@ Important:
 - preserve scope details: actor, object, condition, timeframe, and decision stage
 - do not replace an action ask with a meta ask (review/comment/discuss/consider) unless the draft itself asks that
 - before finalizing localizedMeaning, do a quick back-translation check and ensure actor/action/object/modality/stage still match
+- if you return highlights, suggestedText must revise those highlighted spans
 
 Return structured output only.

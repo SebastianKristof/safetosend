@@ -134,11 +134,18 @@ function buildAnalysisContext(request: AssistantRequest) {
     return ''
   }
 
+  const highlightContext = context.highlights?.length
+    ? `Previous highlighted spans: ${context.highlights
+        .map((highlight) => `"${highlight.text}" (${highlight.severity}: ${highlight.reason})`)
+        .join(' / ')}`
+    : ''
+
   const parts = [
     context.verdict ? `Previous verdict: ${context.verdict}` : '',
     context.inferredGoal ? `Previous inferred goal: ${context.inferredGoal}` : '',
     context.reason ? `Previous reason: ${context.reason}` : '',
     context.recommendedTone ? `Previous recommended tone: ${context.recommendedTone}` : '',
+    highlightContext,
   ].filter(Boolean)
 
   return parts.length ? `Context: ${parts.join(' / ')}` : ''

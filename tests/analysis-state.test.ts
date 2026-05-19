@@ -7,7 +7,13 @@ import type { AnalysisResponse } from '../lib/assistant-contracts.ts'
 const analysis = {
   verdict: 'Safe to send',
   reason: 'Clear and direct.',
-  highlights: [],
+  highlights: [
+    {
+      text: 'Please avoid walking near the fence in the evening',
+      severity: 'yellow',
+      reason: 'Could sound directive without context for some audiences.',
+    },
+  ],
   suggestedText: 'Please send the report by 3 PM.',
   localizedMeaning: 'Отправьте отчет до 15:00.',
   inferredGoal: 'Request a deadline',
@@ -20,6 +26,13 @@ test('buildAnalysisContextPayload keeps the current analysis fields', () => {
     reason: 'Clear and direct.',
     inferredGoal: 'Request a deadline',
     recommendedTone: 'Direct and polite',
+    highlights: [
+      {
+        text: 'Please avoid walking near the fence in the evening',
+        severity: 'yellow',
+        reason: 'Could sound directive without context for some audiences.',
+      },
+    ],
   })
 })
 

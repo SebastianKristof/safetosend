@@ -4,6 +4,7 @@ import {
   analysisResponseSchema,
   assistantRequestSchema,
   editResponseSchema,
+  type AnalysisResponse,
 } from '@/lib/assistant-contracts'
 import { getInferenceConfig, resolveInferenceModel } from '@/lib/inference-config'
 import {
@@ -12,6 +13,28 @@ import {
   getPromptBundle,
 } from '@/lib/assistant-prompts'
 import type { InferenceProvider } from '@/lib/inference-config'
+
+function normalizeDraftForCompare(text: string) {
+  return text.replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+function enforceAnalysisInvariants(result: AnalysisResponse, sourceDraft: string): AnalysisResponse {
+  const hasRed = result.highlights.some((highlight) => highlight.severity === 'red')
+  const hasHighlights = result.highlights.length > 0
+  const rewriteChanged = normalizeDraftForCompare(result.suggestedText) !== normalizeDraftForCompare(sourceDraft)
+
+  const next: AnalysisResponse = { ...result }
+
+  if (hasRed && next.verdict === 'Safe to send') {
+    next.verdict = 'Risky - revise'
+  }
+
+  if (hasHighlights && !rewriteChanged && !hasRed) {
+    next.highlights = []
+  }
+
+  return next
+}
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
@@ -95,7 +118,7 @@ export async function POST(request: Request) {
         providerOptions: buildProviderOptions(slot.provider),
       })
 
-      return NextResponse.json(result.output)
+      return NextResponse.json(enforceAnalysisInvariants(result.output, payload.text))
     }
 
     if (payload.text.trim().length < 3) {

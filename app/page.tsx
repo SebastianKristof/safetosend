@@ -1225,6 +1225,16 @@ export default function Page() {
       label: highlight.reason,
     }))
   }, [analysis, draftIsStale])
+  const analysisHighlightReasons = useMemo(() => {
+    if (draftIsStale || !analysis?.highlights?.length) {
+      return []
+    }
+
+    return analysis.highlights.map((highlight) => ({
+      tone: highlight.severity,
+      reason: highlight.reason,
+    }))
+  }, [analysis, draftIsStale])
   const rewriteHighlights = useMemo<HighlightSpan[]>(() => {
     return lastChanges
       .filter((change) => change.after.trim())
@@ -1734,6 +1744,15 @@ export default function Page() {
             <div className="analysis-reasons">
               <p className="analysis-reasons-label">{copy.panel.reasons}</p>
               <p className="reason-text">{analysis.reason}</p>
+              {analysisHighlightReasons.length ? (
+                <ul className="reason-notes">
+                  {analysisHighlightReasons.map((item, index) => (
+                    <li key={`${item.tone}-${item.reason}-${index}`} className={`reason-note ${item.tone}`}>
+                      {item.reason}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           ) : null}
         </section>
