@@ -1,31 +1,90 @@
-import OpenAI from 'openai'
-
 export const maxDuration = 60
 
-const DEFAULT_TRANSCRIBE_MODEL = 'gpt-4o-mini-transcribe'
-const FALLBACK_TRANSCRIBE_MODEL = 'whisper-1'
+const DEFAULT_TRANSCRIBE_MODEL_PROVIDER = 'openai'
+const DEFAULT_TRANSCRIBE_MODEL_NAME = 'gpt-4o-mini-transcribe'
+const FALLBACK_TRANSCRIBE_MODEL_PROVIDER = 'openai'
+const FALLBACK_TRANSCRIBE_MODEL_NAME = 'whisper-1'
 
-function normalizeModelName(value: string | undefined) {
-  const trimmed = value?.trim() || DEFAULT_TRANSCRIBE_MODEL
-  return trimmed.replace(/^[^/]+\//, '')
+function splitModel(value: string | undefined, fallbackProvider: string, fallbackName: string) {
+  const trimmed = value?.trim()
+  if (!trimmed) {
+    return {
+      modelProvider: fallbackProvider,
+      modelName: fallbackName,
+    }
+  }
+
+  const slashIndex = trimmed.indexOf('/')
+  if (slashIndex === -1) {
+    return {
+      modelProvider: fallbackProvider,
+      modelName: trimmed,
+    }
+  }
+
+  return {
+    modelProvider: trimmed.slice(0, slashIndex).trim() || fallbackProvider,
+    modelName: trimmed.slice(slashIndex + 1).trim() || fallbackName,
+  }
 }
 
 function createClient() {
-  const apiKey = process.env.OPENAI_API_KEY?.trim()
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim()
   if (!apiKey) {
     return null
   }
 
-  return new OpenAI({
-    apiKey,
-    baseURL: 'https://api.openai.com/v1',
+  return apiKey
+}
+
+function guessAudioFormat(file: File) {
+  const type = file.type.toLowerCase()
+
+  if (type.includes('webm')) return 'webm'
+  if (type.includes('mpeg') || type.includes('mp3')) return 'mp3'
+  if (type.includes('mp4') || type.includes('m4a')) return 'mp4'
+  if (type.includes('ogg')) return 'ogg'
+  if (type.includes('wav')) return 'wav'
+  if (type.includes('aac')) return 'aac'
+
+  return 'webm'
+}
+
+async function transcribeWithOpenRouter(apiKey: string, file: File, model: string) {
+  const arrayBuffer = await file.arrayBuffer()
+  const base64 = Buffer.from(arrayBuffer).toString('base64')
+  const response = await fetch('https://openrouter.ai/api/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      input_audio: {
+        data: base64,
+        format: guessAudioFormat(file),
+      },
+      model,
+    }),
   })
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '')
+    throw new Error(
+      `OpenRouter transcription failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ''}`,
+    )
+  }
+
+  return (await response.json()) as { text?: string }
 }
 
 export async function POST(request: Request) {
   const client = createClient()
   if (!client) {
-    return Response.json({ error: 'Missing OPENAI_API_KEY environment variable.' }, { status: 500 })
+    return Response.json(
+      { error: 'Missing OPENROUTER_API_KEY environment variable.' },
+      { status: 500 },
+    )
   }
 
   try {
@@ -35,19 +94,31 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Missing audio file.' }, { status: 400 })
     }
 
-    const preferred = normalizeModelName(process.env.SAFETOSEND_VOICE_MODEL_NAME)
-    const legacy = normalizeModelName(process.env.SAFETOSEND_VOICE_MODEL)
+    const preferred = splitModel(
+      process.env.SAFETOSEND_VOICE_MODEL_NAME,
+      DEFAULT_TRANSCRIBE_MODEL_PROVIDER,
+      DEFAULT_TRANSCRIBE_MODEL_NAME,
+    )
+    const preferredName = process.env.SAFETOSEND_VOICE_MODEL_NAME?.trim()
+    const preferredProvider = process.env.SAFETOSEND_VOICE_MODEL_PROVIDER?.trim() || preferred.modelProvider
+    const legacy = splitModel(
+      process.env.SAFETOSEND_VOICE_MODEL,
+      DEFAULT_TRANSCRIBE_MODEL_PROVIDER,
+      DEFAULT_TRANSCRIBE_MODEL_NAME,
+    )
     const candidates = Array.from(
-      new Set([preferred, legacy, DEFAULT_TRANSCRIBE_MODEL, FALLBACK_TRANSCRIBE_MODEL]),
-    ).filter((value): value is string => Boolean(value))
+      new Set([
+        `${preferredProvider}/${preferredName || preferred.modelName}`,
+        `${legacy.modelProvider}/${legacy.modelName}`,
+        `${DEFAULT_TRANSCRIBE_MODEL_PROVIDER}/${DEFAULT_TRANSCRIBE_MODEL_NAME}`,
+        `${FALLBACK_TRANSCRIBE_MODEL_PROVIDER}/${FALLBACK_TRANSCRIBE_MODEL_NAME}`,
+      ]),
+    )
 
     let lastError = 'Transcription failed.'
     for (const model of candidates) {
       try {
-        const transcript = await client.audio.transcriptions.create({
-          file,
-          model,
-        })
+        const transcript = await transcribeWithOpenRouter(client, file, model)
 
         return Response.json({
           text: transcript.text || '',

@@ -1,7 +1,8 @@
 import { gateway } from 'ai'
 import { openai } from '@ai-sdk/openai'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 
-export type InferenceProvider = 'vercel' | 'openai'
+export type InferenceProvider = 'vercel' | 'openai' | 'openrouter'
 export type ModelSlot = 'voice' | 'textAnalysis' | 'textGeneration'
 
 type SlotConfig = {
@@ -16,10 +17,38 @@ type InferenceConfig = {
   textGeneration: SlotConfig
 }
 
-const DEFAULT_PROVIDER: InferenceProvider = 'vercel'
+const DEFAULT_PROVIDER: InferenceProvider = 'openrouter'
+
+let cachedOpenRouter:
+  | {
+      apiKey: string
+      provider: ReturnType<typeof createOpenAICompatible>
+    }
+  | null = null
 
 function resolveProvider(value: string | undefined, fallback: InferenceProvider): InferenceProvider {
-  return value === 'openai' || value === 'vercel' ? value : fallback
+  return value === 'openai' || value === 'vercel' || value === 'openrouter' ? value : fallback
+}
+
+function getOpenRouterProvider() {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim()
+
+  if (!apiKey) {
+    throw new Error('Missing OPENROUTER_API_KEY environment variable.')
+  }
+
+  if (!cachedOpenRouter || cachedOpenRouter.apiKey !== apiKey) {
+    cachedOpenRouter = {
+      apiKey,
+      provider: createOpenAICompatible({
+        name: 'openrouter',
+        apiKey,
+        baseURL: 'https://openrouter.ai/api/v1',
+      }),
+    }
+  }
+
+  return cachedOpenRouter.provider
 }
 
 function splitCombinedModel(value: string) {
@@ -50,7 +79,7 @@ function normalizeModelProvider(provider: InferenceProvider, value: string | und
 function normalizeModelName(provider: InferenceProvider, value: string | undefined, fallback: string) {
   const raw = (value || fallback).trim()
 
-  if (provider === 'openai') {
+  if (provider === 'openai' || provider === 'openrouter') {
     return raw.replace(/^[^/]+\//, '')
   }
 
@@ -125,5 +154,7 @@ export function getInferenceConfig(): InferenceConfig {
 export function resolveInferenceModel(slot: SlotConfig) {
   return slot.provider === 'openai'
     ? openai(slot.modelName)
+    : slot.provider === 'openrouter'
+      ? getOpenRouterProvider().chatModel(`${slot.modelProvider}/${slot.modelName}`)
     : gateway(`${slot.modelProvider}/${slot.modelName}`)
 }
