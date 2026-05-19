@@ -96,11 +96,45 @@ async function transcribeWithOpenRouter(apiKey: string, file: File, model: strin
     }),
   })
 
+  // If we get a model-related error, try falling back to whisper-1
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
-    throw new Error(
-      `OpenRouter transcription failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ''}`,
-    )
+    const errorData = JSON.parse(detail || '{}');
+    const isModelError = errorData.error?.type === 'invalid_request_error' &&
+                        errorData.error?.message?.includes('model') &&
+                        errorData.error?.message?.includes('Invalid model');
+
+    if (isModelError) {
+      // Try with whisper-1 as fallback
+      const fallbackResponse = await fetch('https://openrouter.ai/api/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          input_audio: {
+            data: base64,
+            format: guessAudioFormat(file),
+          },
+          model: 'whisper-1',
+        }),
+      });
+
+      if (!fallbackResponse.ok) {
+        const fallbackDetail = await fallbackResponse.text().catch(() => '')
+        throw new Error(
+          `OpenRouter transcription failed (${fallbackResponse.status} ${fallbackResponse.statusText})${fallbackDetail ? `: ${fallbackDetail}` : ''}`,
+        )
+      }
+
+      return (await fallbackResponse.json()) as { text?: string }
+    } else {
+      const detail = await response.text().catch(() => '')
+      throw new Error(
+        `OpenRouter transcription failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ''}`,
+      )
+    }
   }
 
   return (await response.json()) as { text?: string }
@@ -124,11 +158,43 @@ async function transcribeWithOpenAI(apiKey: string, file: File, model: string): 
     }),
   })
 
+  // If we get a model-related error, try falling back to whisper-1
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
-    throw new Error(
-      `OpenAI transcription failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ''}`,
-    )
+    const errorData = JSON.parse(detail || '{}');
+    const isModelError = errorData.error?.type === 'invalid_request_error' &&
+                        errorData.error?.message?.includes('model') &&
+                        errorData.error?.message?.includes('Invalid model');
+
+    if (isModelError) {
+      // Try with whisper-1 as fallback
+      const fallbackResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          file: `audio.${guessAudioFormat(file)}`,
+          base64_audio: base64,
+          model: 'whisper-1',
+        }),
+      });
+
+      if (!fallbackResponse.ok) {
+        const fallbackDetail = await fallbackResponse.text().catch(() => '')
+        throw new Error(
+          `OpenAI transcription failed (${fallbackResponse.status} ${fallbackResponse.statusText})${fallbackDetail ? `: ${fallbackDetail}` : ''}`,
+        )
+      }
+
+      return (await fallbackResponse.json()) as { text?: string }
+    } else {
+      const detail = await response.text().catch(() => '')
+      throw new Error(
+        `OpenAI transcription failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ''}`,
+      )
+    }
   }
 
   return (await response.json()) as { text?: string }
