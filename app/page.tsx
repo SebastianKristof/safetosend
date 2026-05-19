@@ -18,6 +18,7 @@ import type {
   Verdict,
 } from '@/lib/assistant-contracts'
 import type { DraftSnapshot } from '@/lib/assistant-client'
+import { buildAnalysisContextPayload, getLocalizedMeaning } from '@/lib/analysis-state'
 import { useAudioRecorder } from '@/hooks/use-audio-recorder'
 
 const STORAGE_KEY = 'safetosend.app.state.v4'
@@ -103,6 +104,8 @@ const UI_COPY = {
       likelyIntent: 'Likely intent',
       tone: 'Recommended tone',
       resultsPlaceholder: 'Results appear here after you check or rewrite the message.',
+      translationTitle: 'Translation for verification',
+      translationNote: 'Use this to confirm meaning. Tone and nuance are judged from the English version.',
       analysisHighlights: 'Questionable parts',
       rewriteHighlights: 'Rewritten parts',
     },
@@ -215,6 +218,8 @@ const UI_COPY = {
       likelyIntent: 'Вероятная цель',
       tone: 'Рекомендуемый тон',
       resultsPlaceholder: 'Результат появится после проверки или правки сообщения.',
+      translationTitle: 'Перевод для проверки',
+      translationNote: 'Используйте это, чтобы сверить смысл. Тон и нюансы оцениваются по английской версии.',
       analysisHighlights: 'Проблемные места',
       rewriteHighlights: 'Переписанные фрагменты',
     },
@@ -327,6 +332,8 @@ const UI_COPY = {
       likelyIntent: 'Intencion probable',
       tone: 'Tono recomendado',
       resultsPlaceholder: 'Los resultados aparecen aqui despues de revisar o reescribir el mensaje.',
+      translationTitle: 'Traduccion para verificacion',
+      translationNote: 'Usalo para confirmar el significado. El tono y el matiz se juzgan por la version en ingles.',
       analysisHighlights: 'Partes cuestionables',
       rewriteHighlights: 'Partes reescritas',
     },
@@ -439,6 +446,8 @@ const UI_COPY = {
       likelyIntent: 'Wahrscheinliche Absicht',
       tone: 'Empfohlener Ton',
       resultsPlaceholder: 'Die Ergebnisse erscheinen hier nach der Pruefung oder Ueberarbeitung der Nachricht.',
+      translationTitle: 'Uebersetzung zur Pruefung',
+      translationNote: 'Nutze dies, um die Bedeutung zu bestaetigen. Ton und Nuancen werden anhand der englischen Version beurteilt.',
       analysisHighlights: 'Fragliche Stellen',
       rewriteHighlights: 'Ueberarbeitete Stellen',
     },
@@ -551,6 +560,8 @@ const UI_COPY = {
       likelyIntent: 'Intention probable',
       tone: 'Tonalite recommandee',
       resultsPlaceholder: 'Les resultats apparaissent ici apres la verification ou la reecriture du message.',
+      translationTitle: 'Traduction pour verification',
+      translationNote: 'Utilisez ceci pour confirmer le sens. Le ton et les nuances sont evalues a partir de la version anglaise.',
       analysisHighlights: 'Passages delicats',
       rewriteHighlights: 'Passages reecrits',
     },
@@ -592,6 +603,7 @@ type PersistedState = {
   audience: string
   voiceCommand: string
   locale?: Locale
+  analysisLocale?: Locale | null
   version?: number
   analysis: AnalysisResponse | null
   past: DraftSnapshot[]
@@ -652,23 +664,6 @@ function localizedVerdict(verdict: Verdict, copy: Copy) {
   }
 
   return copy.verdicts.hold
-}
-
-function buildAnalysisContextPayload(analysis: AnalysisResponse | null) {
-  if (!analysis) {
-    return undefined
-  }
-
-  const verdict = analysis.verdict
-  const verdictIsCurrent =
-    verdict === 'Safe to send' || verdict === 'Risky - revise' || verdict === 'Do not send yet'
-
-  return {
-    verdict: verdictIsCurrent ? verdict : undefined,
-    reason: analysis.reason,
-    inferredGoal: analysis.inferredGoal,
-    recommendedTone: analysis.recommendedTone,
-  }
 }
 
 function buildAudienceOptions(copy: Copy): Array<{ value: Audience; label: string; helper: string }> {
@@ -1084,6 +1079,7 @@ export default function Page() {
   const [audience, setAudience] = useState<Audience>('general')
   const [voiceCommand, setVoiceCommand] = useState('')
   const [locale, setLocale] = useState<Locale>('en')
+  const [analysisLocale, setAnalysisLocale] = useState<Locale | null>(null)
   const [version, setVersion] = useState(1)
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
   const [past, setPast] = useState<DraftSnapshot[]>([])
@@ -1141,6 +1137,7 @@ export default function Page() {
       setAudience(normalizeAudience(persisted.audience))
       setVoiceCommand(persisted.voiceCommand || '')
       setLocale(nextLocale)
+      setAnalysisLocale(persisted.analysisLocale ?? null)
       setVersion(Math.max(1, persistedVersion || 0))
       setAnalysis(persisted.analysis)
       setPast(persisted.past)
@@ -1152,6 +1149,7 @@ export default function Page() {
     } else {
       setClientId(buildClientId())
       setLocale(nextLocale)
+      setAnalysisLocale(null)
       setVersion(1)
       setLastChangeNote(getCopy(nextLocale).status.startDraft)
     }
@@ -1173,6 +1171,7 @@ export default function Page() {
       audience,
       voiceCommand,
       locale,
+      analysisLocale,
       analysis,
       past,
       future,
@@ -1195,6 +1194,7 @@ export default function Page() {
     version,
     voiceCommand,
     workingText,
+    analysisLocale,
   ])
 
   useEffect(() => {
@@ -1234,6 +1234,16 @@ export default function Page() {
         label: change.summary,
       }))
   }, [lastChanges])
+  const localizedMeaning = useMemo(() => {
+    return getLocalizedMeaning({ analysis, analysisLocale, draftIsStale, locale })
+  }, [analysis, analysisLocale, draftIsStale, locale])
+  const analysisContextPayload = useMemo(() => {
+    if (!analysis || draftIsStale || analysisLocale !== locale) {
+      return undefined
+    }
+
+    return buildAnalysisContextPayload(analysis)
+  }, [analysis, analysisLocale, draftIsStale, locale])
   const statusText = isTranscribing
     ? copy.status.transcribing
     : isRecording || isStarting
@@ -1251,6 +1261,7 @@ export default function Page() {
       version,
       draft: workingText,
       analysis,
+      analysisLocale,
       note,
       changes: lastChanges,
     }
@@ -1277,10 +1288,11 @@ export default function Page() {
         audience,
         locale,
         clientId,
-        analysisContext: buildAnalysisContextPayload(analysis),
+        analysisContext: analysisContextPayload,
       }, copy.status.requestFailed)
 
       setAnalysis(result)
+      setAnalysisLocale(locale)
 
       if (commitDraft) {
         editorSelectionRef.current = {
@@ -1336,7 +1348,7 @@ export default function Page() {
         locale,
         instruction,
         clientId,
-        analysisContext: buildAnalysisContextPayload(analysis),
+        analysisContext: analysisContextPayload,
       }, copy.status.requestFailed)
 
       setVersion((current) => current + 1)
@@ -1371,6 +1383,7 @@ export default function Page() {
     }
     setWorkingText(previous.draft)
     setAnalysis(previous.analysis)
+    setAnalysisLocale(previous.analysisLocale ?? null)
     setLastChangeNote(previous.note)
     setLastChanges(previous.changes ?? [])
     setVersion(previous.version)
@@ -1392,6 +1405,7 @@ export default function Page() {
     }
     setWorkingText(next.draft)
     setAnalysis(next.analysis)
+    setAnalysisLocale(next.analysisLocale ?? null)
     setLastChangeNote(next.note)
     setLastChanges(next.changes ?? [])
     setVersion(next.version)
@@ -1437,7 +1451,6 @@ export default function Page() {
       setWorkingText(text)
       setLastChangeNote(copy.status.clipboardPasted)
       setLastChanges([])
-      lastAnalyzedDraftRef.current = text
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : copy.errors.pasteFailed)
@@ -1603,6 +1616,20 @@ export default function Page() {
             </button>
           </div>
         </div>
+
+        {localizedMeaning ? (
+          <section className="verification-card" aria-labelledby="verification-meaning-title">
+            <div className="verification-card-head">
+              <p className="verification-card-title" id="verification-meaning-title">
+                {copy.analysis.translationTitle}
+              </p>
+              <p className="verification-card-note">{copy.analysis.translationNote}</p>
+            </div>
+            <p className="verification-meaning" lang={locale}>
+              {localizedMeaning}
+            </p>
+          </section>
+        ) : null}
 
         <div className="audience-row">
           <AudienceDropdown

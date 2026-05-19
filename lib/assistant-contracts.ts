@@ -32,6 +32,7 @@ export const analysisResponseSchema = z
     reason: z.string().min(1),
     highlights: z.array(analysisHighlightSchema).max(5),
     suggestedText: z.string().min(1),
+    localizedMeaning: z.string().min(1),
     inferredGoal: z.string().min(1),
     recommendedTone: z.string().min(1),
   })

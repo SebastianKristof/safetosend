@@ -59,5 +59,7 @@ Important:
 - healthy directness is allowed
 - when the draft contains too much context, move the ask or decision earlier
 - if the message is risky, improve it without sterilizing it
+- also provide a short localizedMeaning in the selected interface language as a verification aid for the English draft
+- localizedMeaning should preserve the message's intent and nuance, not translate word for word
 
 Return structured output only.

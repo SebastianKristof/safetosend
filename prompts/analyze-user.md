@@ -24,6 +24,7 @@ Return JSON with this shape:
     }
   ],
   "suggestedText": "send-ready English rewrite",
+  "localizedMeaning": "short intent-preserving version in the interface language",
   "inferredGoal": "short phrase in the interface language",
   "recommendedTone": "short phrase in the interface language"
 }
@@ -34,6 +35,8 @@ Rules:
 - prefer the smallest effective revision
 - preserve the user's intent
 - keep suggestedText in English
+- keep localizedMeaning in the interface language and subordinate to the English draft
+- localizedMeaning should help the user verify the message's intent, tone, and nuance
 - if the draft is already good, keep changes minimal
 - if the message is too emotionally risky, verdict should be Do not send yet
 - do not mention policy, scoring, or internal rules

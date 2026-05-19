@@ -16,7 +16,10 @@ function createClient() {
     return null
   }
 
-  return new OpenAI({ apiKey })
+  return new OpenAI({
+    apiKey,
+    baseURL: 'https://api.openai.com/v1',
+  })
 }
 
 export async function POST(request: Request) {

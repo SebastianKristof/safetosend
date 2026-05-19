@@ -276,6 +276,46 @@ h2 {
     0 0 0 3px rgba(109, 141, 184, 0.1);
 }
 
+.verification-card {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid rgba(216, 210, 199, 0.88);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #faf9f5 0%, #f4f1ea 100%);
+  box-shadow: var(--shadow-soft);
+}
+
+.verification-card-head {
+  display: grid;
+  gap: 3px;
+}
+
+.verification-card-title {
+  margin: 0;
+  color: var(--accent-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.verification-card-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.verification-meaning {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .editor-layer {
   position: absolute;
   inset: 0;
@@ -783,6 +823,20 @@ h2 {
 
   .analysis-reasons {
     padding-top: 6px;
+  }
+
+  .verification-card {
+    padding: 9px 10px;
+    gap: 4px;
+  }
+
+  .verification-card-note {
+    font-size: 0.72rem;
+  }
+
+  .verification-meaning {
+    font-size: 0.84rem;
+    line-height: 1.38;
   }
 
   .editor-shell {
