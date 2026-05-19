@@ -17,7 +17,7 @@ type InferenceConfig = {
   textGeneration: SlotConfig
 }
 
-const DEFAULT_PROVIDER: InferenceProvider = 'openrouter'
+const DEFAULT_PROVIDER: InferenceProvider = 'openai'
 
 let cachedOpenRouter:
   | {
