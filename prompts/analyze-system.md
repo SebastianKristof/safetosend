@@ -61,6 +61,12 @@ Important:
 - when the draft contains too much context, move the ask or decision earlier
 - if the message is risky, improve it without sterilizing it
 - also provide a short localizedMeaning in the selected interface language as a verification aid for the English draft
-- localizedMeaning should preserve the message's intent and nuance, not translate word for word
+- localizedMeaning is for meaning verification, not prose quality
+- prefer literal translation for the core ask, even if the phrasing is less smooth
+- preserve exact intent: same speech act, same core action, same target outcome
+- preserve strength/modality (must/need/can/might/would) and do not weaken or strengthen
+- preserve scope details: actor, object, condition, timeframe, and decision stage
+- do not replace an action ask with a meta ask (review/comment/discuss/consider) unless the draft itself asks that
+- before finalizing localizedMeaning, do a quick back-translation check and ensure actor/action/object/modality/stage still match
 
 Return structured output only.

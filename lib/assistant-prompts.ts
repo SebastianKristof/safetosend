@@ -33,6 +33,32 @@ async function readPrompt(relativePath: string) {
 }
 
 export async function getPromptBundle() {
+  if (process.env.NODE_ENV === 'development') {
+    const [analyzeSystem, analyzeUser, editUser, boss, client, colleague, partner, general] = await Promise.all([
+      readPrompt('prompts/analyze-system.md'),
+      readPrompt('prompts/analyze-user.md'),
+      readPrompt('prompts/edit-user.md'),
+      readPrompt('prompts/audiences/boss.md'),
+      readPrompt('prompts/audiences/client.md'),
+      readPrompt('prompts/audiences/colleague.md'),
+      readPrompt('prompts/audiences/partner.md'),
+      readPrompt('prompts/audiences/general.md'),
+    ])
+
+    return {
+      analyzeSystem,
+      analyzeUser,
+      editUser,
+      audienceGuidance: {
+        boss,
+        client,
+        colleague,
+        partner,
+        general,
+      },
+    } satisfies PromptBundle
+  }
+
   if (!promptBundlePromise) {
     promptBundlePromise = Promise.all([
       readPrompt('prompts/analyze-system.md'),

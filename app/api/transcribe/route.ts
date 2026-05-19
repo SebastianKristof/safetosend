@@ -28,6 +28,17 @@ function splitModel(value: string | undefined, fallbackProvider: string, fallbac
   }
 }
 
+function resolveModelForProvider(
+  provider: 'openai' | 'openrouter' | 'vercel',
+  model: { modelProvider: string; modelName: string },
+) {
+  if (provider === 'openai' || provider === 'vercel') {
+    return model.modelName
+  }
+
+  return `${model.modelProvider}/${model.modelName}`
+}
+
 function getVoiceProvider(): 'openai' | 'openrouter' | 'vercel' {
   return (
     process.env.SAFETOSEND_VOICE_PROVIDER?.trim() ||
@@ -78,6 +89,27 @@ function guessAudioFormat(file: File) {
   return 'webm'
 }
 
+function parseErrorPayload(detail: string) {
+  if (!detail.trim()) {
+    return {}
+  }
+
+  try {
+    return JSON.parse(detail) as { error?: { type?: string; message?: string } }
+  } catch {
+    return {}
+  }
+}
+
+function isInvalidModelError(errorData: { error?: { type?: string; message?: string } }) {
+  const message = errorData.error?.message ?? ''
+  return (
+    errorData.error?.type === 'invalid_request_error' &&
+    message.toLowerCase().includes('model') &&
+    message.toLowerCase().includes('invalid')
+  )
+}
+
 async function transcribeWithOpenRouter(apiKey: string, file: File, model: string): Promise<{ text?: string }> {
   const arrayBuffer = await file.arrayBuffer()
   const base64 = Buffer.from(arrayBuffer).toString('base64')
@@ -99,10 +131,8 @@ async function transcribeWithOpenRouter(apiKey: string, file: File, model: strin
   // If we get a model-related error, try falling back to whisper-1
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
-    const errorData = JSON.parse(detail || '{}');
-    const isModelError = errorData.error?.type === 'invalid_request_error' &&
-                        errorData.error?.message?.includes('model') &&
-                        errorData.error?.message?.includes('Invalid model');
+    const errorData = parseErrorPayload(detail)
+    const isModelError = isInvalidModelError(errorData)
 
     if (isModelError) {
       // Try with whisper-1 as fallback
@@ -119,7 +149,7 @@ async function transcribeWithOpenRouter(apiKey: string, file: File, model: strin
           },
           model: 'whisper-1',
         }),
-      });
+      })
 
       if (!fallbackResponse.ok) {
         const fallbackDetail = await fallbackResponse.text().catch(() => '')
@@ -130,7 +160,6 @@ async function transcribeWithOpenRouter(apiKey: string, file: File, model: strin
 
       return (await fallbackResponse.json()) as { text?: string }
     } else {
-      const detail = await response.text().catch(() => '')
       throw new Error(
         `OpenRouter transcription failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ''}`,
       )
@@ -141,45 +170,39 @@ async function transcribeWithOpenRouter(apiKey: string, file: File, model: strin
 }
 
 async function transcribeWithOpenAI(apiKey: string, file: File, model: string): Promise<{ text?: string }> {
-  const arrayBuffer = await file.arrayBuffer()
-  const base64 = Buffer.from(arrayBuffer).toString('base64')
+  const body = new FormData()
+  body.append('file', file, file.name || `audio.${guessAudioFormat(file)}`)
+  body.append('model', model)
+  body.append('response_format', 'json')
 
-  // Using OpenAI's audio transcription API
   const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      file: `audio.${guessAudioFormat(file)}`,
-      base64_audio: base64,
-      model,
-    }),
+    body,
   })
 
   // If we get a model-related error, try falling back to whisper-1
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
-    const errorData = JSON.parse(detail || '{}');
-    const isModelError = errorData.error?.type === 'invalid_request_error' &&
-                        errorData.error?.message?.includes('model') &&
-                        errorData.error?.message?.includes('Invalid model');
+    const errorData = parseErrorPayload(detail)
+    const isModelError = isInvalidModelError(errorData)
 
     if (isModelError) {
+      const fallbackBody = new FormData()
+      fallbackBody.append('file', file, file.name || `audio.${guessAudioFormat(file)}`)
+      fallbackBody.append('model', 'whisper-1')
+      fallbackBody.append('response_format', 'json')
+
       // Try with whisper-1 as fallback
       const fallbackResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          file: `audio.${guessAudioFormat(file)}`,
-          base64_audio: base64,
-          model: 'whisper-1',
-        }),
-      });
+        body: fallbackBody,
+      })
 
       if (!fallbackResponse.ok) {
         const fallbackDetail = await fallbackResponse.text().catch(() => '')
@@ -190,7 +213,6 @@ async function transcribeWithOpenAI(apiKey: string, file: File, model: string): 
 
       return (await fallbackResponse.json()) as { text?: string }
     } else {
-      const detail = await response.text().catch(() => '')
       throw new Error(
         `OpenAI transcription failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ''}`,
       )
@@ -237,7 +259,7 @@ export async function POST(request: Request) {
         DEFAULT_TRANSCRIBE_MODEL_PROVIDER,
         DEFAULT_TRANSCRIBE_MODEL_NAME,
       )
-      const modelToUse = `${model.modelProvider}/${model.modelName}`
+      const modelToUse = resolveModelForProvider(provider, model)
 
       try {
         const transcript = await transcribeWithOpenAI(apiKey, file, modelToUse)
@@ -266,7 +288,7 @@ export async function POST(request: Request) {
         DEFAULT_TRANSCRIBE_MODEL_PROVIDER,
         DEFAULT_TRANSCRIBE_MODEL_NAME,
       )
-      const modelToUse = `${model.modelProvider}/${model.modelName}`
+      const modelToUse = resolveModelForProvider(provider, model)
 
       try {
         const transcript = await transcribeWithOpenRouter(apiKey, file, modelToUse)
