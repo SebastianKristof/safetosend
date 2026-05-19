@@ -4,6 +4,7 @@ import {
   analysisResponseSchema,
   assistantRequestSchema,
   editResponseSchema,
+  type AnalysisResponse,
 } from '@/lib/assistant-contracts'
 import { getInferenceConfig, resolveInferenceModel } from '@/lib/inference-config'
 import {
@@ -11,7 +12,30 @@ import {
   buildEditPrompt,
   getPromptBundle,
 } from '@/lib/assistant-prompts'
+import { MAX_DRAFT_CHARS } from '@/lib/draft-limits'
 import type { InferenceProvider } from '@/lib/inference-config'
+
+function normalizeDraftForCompare(text: string) {
+  return text.replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+function enforceAnalysisInvariants(result: AnalysisResponse, sourceDraft: string): AnalysisResponse {
+  const hasRed = result.highlights.some((highlight) => highlight.severity === 'red')
+  const hasHighlights = result.highlights.length > 0
+  const rewriteChanged = normalizeDraftForCompare(result.suggestedText) !== normalizeDraftForCompare(sourceDraft)
+
+  const next: AnalysisResponse = { ...result }
+
+  if (hasRed && next.verdict === 'Safe to send') {
+    next.verdict = 'Risky - revise'
+  }
+
+  if (hasHighlights && !rewriteChanged && !hasRed) {
+    next.highlights = []
+  }
+
+  return next
+}
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
@@ -39,26 +63,31 @@ export async function POST(request: Request) {
   const messages = {
     en: {
       missingDraft: 'Missing draft text.',
+      draftTooLong: `Draft is too long. Maximum is ${MAX_DRAFT_CHARS} characters.`,
       missingInstruction: 'Missing edit instruction.',
       requestFailed: 'AI request failed.',
     },
     ru: {
       missingDraft: 'Не хватает текста черновика.',
+      draftTooLong: `Черновик слишком длинный. Максимум ${MAX_DRAFT_CHARS} символов.`,
       missingInstruction: 'Не хватает инструкции для правки.',
       requestFailed: 'Запрос к ИИ не удался.',
     },
     es: {
       missingDraft: 'Falta el texto del borrador.',
+      draftTooLong: `El borrador es demasiado largo. El maximo es ${MAX_DRAFT_CHARS} caracteres.`,
       missingInstruction: 'Falta la instruccion de edicion.',
       requestFailed: 'La solicitud a la IA fallo.',
     },
     de: {
       missingDraft: 'Entwurfstext fehlt.',
+      draftTooLong: `Der Entwurf ist zu lang. Maximum sind ${MAX_DRAFT_CHARS} Zeichen.`,
       missingInstruction: 'Bearbeitungsanweisung fehlt.',
       requestFailed: 'Die KI-Anfrage ist fehlgeschlagen.',
     },
     fr: {
       missingDraft: 'Le texte du brouillon manque.',
+      draftTooLong: `Le brouillon est trop long. Maximum: ${MAX_DRAFT_CHARS} caracteres.`,
       missingInstruction: "L'instruction de modification manque.",
       requestFailed: "La requete a l'IA a echoue.",
     },
@@ -79,6 +108,9 @@ export async function POST(request: Request) {
       if (payload.text.trim().length < 3) {
         return NextResponse.json({ error: messages.missingDraft }, { status: 400 })
       }
+      if (payload.text.trim().length > MAX_DRAFT_CHARS) {
+        return NextResponse.json({ error: messages.draftTooLong }, { status: 400 })
+      }
 
       const slot = inferenceConfig.textAnalysis
       const model = resolveInferenceModel(slot)
@@ -95,11 +127,14 @@ export async function POST(request: Request) {
         providerOptions: buildProviderOptions(slot.provider),
       })
 
-      return NextResponse.json(result.output)
+      return NextResponse.json(enforceAnalysisInvariants(result.output, payload.text))
     }
 
     if (payload.text.trim().length < 3) {
       return NextResponse.json({ error: messages.missingDraft }, { status: 400 })
+    }
+    if (payload.text.trim().length > MAX_DRAFT_CHARS) {
+      return NextResponse.json({ error: messages.draftTooLong }, { status: 400 })
     }
 
     if (!payload.instruction?.trim()) {

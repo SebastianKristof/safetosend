@@ -1,9 +1,10 @@
-import type { AnalysisResponse, EditChange, Verdict } from './assistant-contracts'
+import type { AnalysisResponse, EditChange, Locale, Verdict } from './assistant-contracts'
 
 export type DraftSnapshot = {
   version: number
   draft: string
   analysis: AnalysisResponse | null
+  analysisLocale?: Locale | null
   note: string
   changes: EditChange[]
 }

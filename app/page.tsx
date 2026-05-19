@@ -18,6 +18,8 @@ import type {
   Verdict,
 } from '@/lib/assistant-contracts'
 import type { DraftSnapshot } from '@/lib/assistant-client'
+import { buildAnalysisContextPayload, getLocalizedMeaning } from '@/lib/analysis-state'
+import { MAX_DRAFT_CHARS } from '@/lib/draft-limits'
 import { useAudioRecorder } from '@/hooks/use-audio-recorder'
 
 const STORAGE_KEY = 'safetosend.app.state.v4'
@@ -103,6 +105,8 @@ const UI_COPY = {
       likelyIntent: 'Likely intent',
       tone: 'Recommended tone',
       resultsPlaceholder: 'Results appear here after you check or rewrite the message.',
+      translationTitle: 'Translation for verification',
+      translationNote: 'Use this to confirm meaning. Tone and nuance are judged from the English version.',
       analysisHighlights: 'Questionable parts',
       rewriteHighlights: 'Rewritten parts',
     },
@@ -125,12 +129,14 @@ const UI_COPY = {
     errors: {
       pasteFirst: 'Paste a draft first.',
       addDraft: 'Add a draft first.',
+      draftTooLong: `Draft is too long. Max ${MAX_DRAFT_CHARS} characters.`,
       nothingToCopy: 'Nothing to copy.',
       clipboardEmpty: 'Clipboard is empty.',
       copyFailed: 'Copy failed.',
       pasteFailed: 'Paste failed.',
       dictationUnsupported: 'Voice capture is not available in this browser.',
       dictationFailed: 'Voice capture failed',
+      voiceTooShort: 'Hold a little longer to record.',
       couldNotStart: 'Could not start recording.',
     },
   },
@@ -214,6 +220,8 @@ const UI_COPY = {
       likelyIntent: 'Вероятная цель',
       tone: 'Рекомендуемый тон',
       resultsPlaceholder: 'Результат появится после проверки или правки сообщения.',
+      translationTitle: 'Перевод для проверки',
+      translationNote: 'Используйте это, чтобы сверить смысл. Тон и нюансы оцениваются по английской версии.',
       analysisHighlights: 'Проблемные места',
       rewriteHighlights: 'Переписанные фрагменты',
     },
@@ -236,12 +244,14 @@ const UI_COPY = {
     errors: {
       pasteFirst: 'Сначала вставьте черновик.',
       addDraft: 'Сначала добавьте черновик.',
+      draftTooLong: `Черновик слишком длинный. Максимум ${MAX_DRAFT_CHARS} символов.`,
       nothingToCopy: 'Копировать нечего.',
       clipboardEmpty: 'Буфер обмена пуст.',
       copyFailed: 'Не удалось скопировать текст.',
       pasteFailed: 'Не удалось вставить текст.',
       dictationUnsupported: 'Голосовая запись недоступна в этом браузере.',
       dictationFailed: 'Не удалось распознать голос',
+      voiceTooShort: 'Подержите кнопку чуть дольше, чтобы записать.',
       couldNotStart: 'Не удалось начать запись.',
     },
   },
@@ -325,6 +335,8 @@ const UI_COPY = {
       likelyIntent: 'Intencion probable',
       tone: 'Tono recomendado',
       resultsPlaceholder: 'Los resultados aparecen aqui despues de revisar o reescribir el mensaje.',
+      translationTitle: 'Traduccion para verificacion',
+      translationNote: 'Usalo para confirmar el significado. El tono y el matiz se juzgan por la version en ingles.',
       analysisHighlights: 'Partes cuestionables',
       rewriteHighlights: 'Partes reescritas',
     },
@@ -347,12 +359,14 @@ const UI_COPY = {
     errors: {
       pasteFirst: 'Primero pega un borrador.',
       addDraft: 'Primero agrega un borrador.',
+      draftTooLong: `El borrador es demasiado largo. Maximo ${MAX_DRAFT_CHARS} caracteres.`,
       nothingToCopy: 'No hay nada para copiar.',
       clipboardEmpty: 'El portapapeles esta vacio.',
       copyFailed: 'No se pudo copiar el texto.',
       pasteFailed: 'No se pudo pegar el texto.',
       dictationUnsupported: 'La captura de voz no esta disponible en este navegador.',
       dictationFailed: 'La captura de voz fallo',
+      voiceTooShort: 'Mantén pulsado un poco más para grabar.',
       couldNotStart: 'No se pudo iniciar la grabacion.',
     },
   },
@@ -436,6 +450,8 @@ const UI_COPY = {
       likelyIntent: 'Wahrscheinliche Absicht',
       tone: 'Empfohlener Ton',
       resultsPlaceholder: 'Die Ergebnisse erscheinen hier nach der Pruefung oder Ueberarbeitung der Nachricht.',
+      translationTitle: 'Uebersetzung zur Pruefung',
+      translationNote: 'Nutze dies, um die Bedeutung zu bestaetigen. Ton und Nuancen werden anhand der englischen Version beurteilt.',
       analysisHighlights: 'Fragliche Stellen',
       rewriteHighlights: 'Ueberarbeitete Stellen',
     },
@@ -458,12 +474,14 @@ const UI_COPY = {
     errors: {
       pasteFirst: 'Fuege zuerst einen Entwurf ein.',
       addDraft: 'Fuege zuerst einen Entwurf hinzu.',
+      draftTooLong: `Der Entwurf ist zu lang. Maximal ${MAX_DRAFT_CHARS} Zeichen.`,
       nothingToCopy: 'Nichts zum Kopieren vorhanden.',
       clipboardEmpty: 'Die Zwischenablage ist leer.',
       copyFailed: 'Der Text konnte nicht kopiert werden.',
       pasteFailed: 'Der Text konnte nicht eingefuegt werden.',
       dictationUnsupported: 'Sprachaufnahme ist in diesem Browser nicht verfuegbar.',
       dictationFailed: 'Sprachaufnahme fehlgeschlagen',
+      voiceTooShort: 'Zum Aufnehmen etwas laenger gedrueckt halten.',
       couldNotStart: 'Aufnahme konnte nicht gestartet werden.',
     },
   },
@@ -547,6 +565,8 @@ const UI_COPY = {
       likelyIntent: 'Intention probable',
       tone: 'Tonalite recommandee',
       resultsPlaceholder: 'Les resultats apparaissent ici apres la verification ou la reecriture du message.',
+      translationTitle: 'Traduction pour verification',
+      translationNote: 'Utilisez ceci pour confirmer le sens. Le ton et les nuances sont evalues a partir de la version anglaise.',
       analysisHighlights: 'Passages delicats',
       rewriteHighlights: 'Passages reecrits',
     },
@@ -569,12 +589,14 @@ const UI_COPY = {
     errors: {
       pasteFirst: 'Colle dabord un brouillon.',
       addDraft: 'Ajoute dabord un brouillon.',
+      draftTooLong: `Le brouillon est trop long. Maximum ${MAX_DRAFT_CHARS} caracteres.`,
       nothingToCopy: 'Rien a copier.',
       clipboardEmpty: 'Le presse-papiers est vide.',
       copyFailed: 'Impossible de copier le texte.',
       pasteFailed: 'Impossible de coller le texte.',
       dictationUnsupported: "La capture vocale n'est pas disponible dans ce navigateur.",
       dictationFailed: 'La capture vocale a echoue',
+      voiceTooShort: 'Maintiens un peu plus longtemps pour enregistrer.',
       couldNotStart: "Impossible de demarrer l enregistrement.",
     },
   },
@@ -587,6 +609,7 @@ type PersistedState = {
   audience: string
   voiceCommand: string
   locale?: Locale
+  analysisLocale?: Locale | null
   version?: number
   analysis: AnalysisResponse | null
   past: DraftSnapshot[]
@@ -649,23 +672,6 @@ function localizedVerdict(verdict: Verdict, copy: Copy) {
   return copy.verdicts.hold
 }
 
-function buildAnalysisContextPayload(analysis: AnalysisResponse | null) {
-  if (!analysis) {
-    return undefined
-  }
-
-  const verdict = analysis.verdict
-  const verdictIsCurrent =
-    verdict === 'Safe to send' || verdict === 'Risky - revise' || verdict === 'Do not send yet'
-
-  return {
-    verdict: verdictIsCurrent ? verdict : undefined,
-    reason: analysis.reason,
-    inferredGoal: analysis.inferredGoal,
-    recommendedTone: analysis.recommendedTone,
-  }
-}
-
 function buildAudienceOptions(copy: Copy): Array<{ value: Audience; label: string; helper: string }> {
   return [
     { value: 'boss', label: copy.audiences.boss.label, helper: copy.audiences.boss.helper },
@@ -695,6 +701,7 @@ function defaultRewriteInstruction(locale: Locale) {
 }
 
 const MAX_RECORDING_SECONDS = 60
+const MIN_TRANSCRIPTION_BYTES = 1200
 
 function mergeTranscribedText(existing: string, transcript: string) {
   const normalizedTranscript = transcript.trim()
@@ -854,6 +861,61 @@ function RewriteIcon() {
     <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
       <path
         d="M7 7h9l-2.5-2.5L15 3l5 5-5 5-1.5-1.5L16 9H7a3 3 0 0 0 0 6h2v2H7a5 5 0 0 1 0-10Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function UndoIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <path
+        d="M9 8V4L3 10l6 6v-4h4a4 4 0 1 1 0 8h-1v2h1a6 6 0 1 0 0-12H9Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function RedoIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <path
+        d="M15 8V4l6 6-6 6v-4h-4a4 4 0 1 0 0 8h1v2h-1a6 6 0 1 1 0-12h4Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function CopyIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <path
+        d="M9 3a2 2 0 0 0-2 2v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-2h1a2 2 0 0 0 2-2V7l-4-4H9Zm8 4h-3V4.5L17 7ZM6 9h8v10H6V9Zm3-4h3v2H9V5Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function PasteIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <path
+        d="M9 2h6a2 2 0 0 1 2 2h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2-2Zm6 4V4H9v2h6Zm4 2H5v12h14V8Zm-9 3h6v2h-6v-2Zm0 4h6v2h-6v-2Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <path
+        d="m9.2 16.2-3.4-3.4L4.4 14.2l4.8 4.8L20 8.2l-1.4-1.4-9.4 9.4Z"
         fill="currentColor"
       />
     </svg>
@@ -1078,6 +1140,7 @@ export default function Page() {
   const [audience, setAudience] = useState<Audience>('general')
   const [voiceCommand, setVoiceCommand] = useState('')
   const [locale, setLocale] = useState<Locale>('en')
+  const [analysisLocale, setAnalysisLocale] = useState<Locale | null>(null)
   const [version, setVersion] = useState(1)
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
   const [past, setPast] = useState<DraftSnapshot[]>([])
@@ -1135,6 +1198,7 @@ export default function Page() {
       setAudience(normalizeAudience(persisted.audience))
       setVoiceCommand(persisted.voiceCommand || '')
       setLocale(nextLocale)
+      setAnalysisLocale(persisted.analysisLocale ?? null)
       setVersion(Math.max(1, persistedVersion || 0))
       setAnalysis(persisted.analysis)
       setPast(persisted.past)
@@ -1146,6 +1210,7 @@ export default function Page() {
     } else {
       setClientId(buildClientId())
       setLocale(nextLocale)
+      setAnalysisLocale(null)
       setVersion(1)
       setLastChangeNote(getCopy(nextLocale).status.startDraft)
     }
@@ -1167,6 +1232,7 @@ export default function Page() {
       audience,
       voiceCommand,
       locale,
+      analysisLocale,
       analysis,
       past,
       future,
@@ -1189,6 +1255,7 @@ export default function Page() {
     version,
     voiceCommand,
     workingText,
+    analysisLocale,
   ])
 
   useEffect(() => {
@@ -1208,6 +1275,7 @@ export default function Page() {
     return verdictStyle(analysis.verdict)
   }, [analysis])
   const draftIsStale = Boolean(analysis) && workingText.trim() !== lastAnalyzedDraftRef.current.trim()
+  const draftTooLong = workingText.trim().length > MAX_DRAFT_CHARS
   const analysisHighlights = useMemo<HighlightSpan[]>(() => {
     if (draftIsStale || !analysis?.highlights?.length) {
       return []
@@ -1219,6 +1287,16 @@ export default function Page() {
       label: highlight.reason,
     }))
   }, [analysis, draftIsStale])
+  const analysisHighlightReasons = useMemo(() => {
+    if (draftIsStale || !analysis?.highlights?.length) {
+      return []
+    }
+
+    return analysis.highlights.map((highlight) => ({
+      tone: highlight.severity,
+      reason: highlight.reason,
+    }))
+  }, [analysis, draftIsStale])
   const rewriteHighlights = useMemo<HighlightSpan[]>(() => {
     return lastChanges
       .filter((change) => change.after.trim())
@@ -1228,6 +1306,16 @@ export default function Page() {
         label: change.summary,
       }))
   }, [lastChanges])
+  const localizedMeaning = useMemo(() => {
+    return getLocalizedMeaning({ analysis, analysisLocale, draftIsStale, locale })
+  }, [analysis, analysisLocale, draftIsStale, locale])
+  const analysisContextPayload = useMemo(() => {
+    if (!analysis || draftIsStale || analysisLocale !== locale) {
+      return undefined
+    }
+
+    return buildAnalysisContextPayload(analysis)
+  }, [analysis, analysisLocale, draftIsStale, locale])
   const statusText = isTranscribing
     ? copy.status.transcribing
     : isRecording || isStarting
@@ -1245,6 +1333,7 @@ export default function Page() {
       version,
       draft: workingText,
       analysis,
+      analysisLocale,
       note,
       changes: lastChanges,
     }
@@ -1271,10 +1360,11 @@ export default function Page() {
         audience,
         locale,
         clientId,
-        analysisContext: buildAnalysisContextPayload(analysis),
+        analysisContext: analysisContextPayload,
       }, copy.status.requestFailed)
 
       setAnalysis(result)
+      setAnalysisLocale(locale)
 
       if (commitDraft) {
         editorSelectionRef.current = {
@@ -1304,6 +1394,9 @@ export default function Page() {
       setError(copy.errors.pasteFirst)
       return
     }
+    if (source.length > MAX_DRAFT_CHARS) {
+      return
+    }
 
     checkpoint(copy.status.beforeCheck)
     await analyzeCurrentDraft(source)
@@ -1315,6 +1408,9 @@ export default function Page() {
 
     if (source.length < 3) {
       setError(copy.errors.addDraft)
+      return
+    }
+    if (source.length > MAX_DRAFT_CHARS) {
       return
     }
 
@@ -1330,7 +1426,7 @@ export default function Page() {
         locale,
         instruction,
         clientId,
-        analysisContext: buildAnalysisContextPayload(analysis),
+        analysisContext: analysisContextPayload,
       }, copy.status.requestFailed)
 
       setVersion((current) => current + 1)
@@ -1365,6 +1461,7 @@ export default function Page() {
     }
     setWorkingText(previous.draft)
     setAnalysis(previous.analysis)
+    setAnalysisLocale(previous.analysisLocale ?? null)
     setLastChangeNote(previous.note)
     setLastChanges(previous.changes ?? [])
     setVersion(previous.version)
@@ -1386,6 +1483,7 @@ export default function Page() {
     }
     setWorkingText(next.draft)
     setAnalysis(next.analysis)
+    setAnalysisLocale(next.analysisLocale ?? null)
     setLastChangeNote(next.note)
     setLastChanges(next.changes ?? [])
     setVersion(next.version)
@@ -1431,7 +1529,6 @@ export default function Page() {
       setWorkingText(text)
       setLastChangeNote(copy.status.clipboardPasted)
       setLastChanges([])
-      lastAnalyzedDraftRef.current = text
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : copy.errors.pasteFailed)
@@ -1447,6 +1544,11 @@ export default function Page() {
       return
     }
 
+    if (blob.size < MIN_TRANSCRIPTION_BYTES) {
+      setError(copy.errors.voiceTooShort)
+      return
+    }
+
     setIsTranscribing(true)
     try {
       const transcript = await transcribeBlob(blob)
@@ -1459,7 +1561,14 @@ export default function Page() {
       setIsTranscribing(false)
       setError(err instanceof Error ? err.message : copy.errors.dictationFailed)
     }
-  }, [copy.errors.couldNotStart, copy.errors.dictationFailed, copy.status.voiceCommandCaptured, runRewrite, stop])
+  }, [
+    copy.errors.couldNotStart,
+    copy.errors.dictationFailed,
+    copy.errors.voiceTooShort,
+    copy.status.voiceCommandCaptured,
+    runRewrite,
+    stop,
+  ])
 
   const startVoiceCapture = useCallback(
     async (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -1548,6 +1657,7 @@ export default function Page() {
                 }}
               />
             </div>
+            {draftTooLong ? <p className="field-warning">{copy.errors.draftTooLong}</p> : null}
           </label>
 
           <div className="history-rail" aria-label={copy.panel.changes}>
@@ -1556,35 +1666,57 @@ export default function Page() {
               onClick={undoLastChange}
               disabled={!past.length || interactionBusy}
               type="button"
+              title={copy.buttons.undo}
+              aria-label={copy.buttons.undo}
             >
-              {copy.buttons.undo}
+              <UndoIcon />
             </button>
             <button
               className="ghost-button rail-button"
               onClick={redoLastChange}
               disabled={!future.length || interactionBusy}
               type="button"
+              title={copy.buttons.redo}
+              aria-label={copy.buttons.redo}
             >
-              {copy.buttons.redo}
+              <RedoIcon />
             </button>
             <button
               className="ghost-button rail-button"
               onClick={() => void copyWorkingText()}
               disabled={interactionBusy || !workingText.trim()}
               type="button"
+              title={copied ? copy.buttons.copied : copy.buttons.copy}
+              aria-label={copied ? copy.buttons.copied : copy.buttons.copy}
             >
-              {copied ? copy.buttons.copied : copy.buttons.copy}
+              {copied ? <CheckIcon /> : <CopyIcon />}
             </button>
             <button
               className="ghost-button rail-button"
               onClick={() => void pasteIntoDraft()}
               disabled={interactionBusy}
               type="button"
+              title={copy.buttons.paste}
+              aria-label={copy.buttons.paste}
             >
-              {copy.buttons.paste}
+              <PasteIcon />
             </button>
           </div>
         </div>
+
+        {localizedMeaning ? (
+          <section className="verification-card" aria-labelledby="verification-meaning-title">
+            <div className="verification-card-head">
+              <p className="verification-card-title" id="verification-meaning-title">
+                {copy.analysis.translationTitle}
+              </p>
+              <p className="verification-card-note">{copy.analysis.translationNote}</p>
+            </div>
+            <p className="verification-meaning" lang={locale}>
+              {localizedMeaning}
+            </p>
+          </section>
+        ) : null}
 
         <div className="audience-row">
           <AudienceDropdown
@@ -1599,7 +1731,7 @@ export default function Page() {
           <button
             className="primary-button"
             onClick={() => void runCheck()}
-            disabled={interactionBusy || workingText.trim().length < 3}
+            disabled={interactionBusy || workingText.trim().length < 3 || draftTooLong}
             type="button"
           >
             {status === 'analyzing' ? copy.buttons.checking : copy.buttons.check}
@@ -1607,7 +1739,7 @@ export default function Page() {
           <button
             className="secondary-button"
             onClick={() => void runRewrite()}
-            disabled={interactionBusy || !workingText.trim()}
+            disabled={interactionBusy || !workingText.trim() || draftTooLong}
             type="button"
           >
             {status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
@@ -1630,7 +1762,7 @@ export default function Page() {
             <button
               className="secondary-button icon-button edit-button"
               onClick={() => void runRewrite()}
-              disabled={interactionBusy || !workingText.trim()}
+              disabled={interactionBusy || !workingText.trim() || draftTooLong}
               type="button"
               title={status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
               aria-label={status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
@@ -1689,6 +1821,15 @@ export default function Page() {
             <div className="analysis-reasons">
               <p className="analysis-reasons-label">{copy.panel.reasons}</p>
               <p className="reason-text">{analysis.reason}</p>
+              {analysisHighlightReasons.length ? (
+                <ul className="reason-notes">
+                  {analysisHighlightReasons.map((item, index) => (
+                    <li key={`${item.tone}-${item.reason}-${index}`} className={`reason-note ${item.tone}`}>
+                      {item.reason}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           ) : null}
         </section>
