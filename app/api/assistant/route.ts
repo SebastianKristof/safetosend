@@ -12,6 +12,7 @@ import {
   buildEditPrompt,
   getPromptBundle,
 } from '@/lib/assistant-prompts'
+import { MAX_DRAFT_CHARS } from '@/lib/draft-limits'
 import type { InferenceProvider } from '@/lib/inference-config'
 
 function normalizeDraftForCompare(text: string) {
@@ -62,26 +63,31 @@ export async function POST(request: Request) {
   const messages = {
     en: {
       missingDraft: 'Missing draft text.',
+      draftTooLong: `Draft is too long. Maximum is ${MAX_DRAFT_CHARS} characters.`,
       missingInstruction: 'Missing edit instruction.',
       requestFailed: 'AI request failed.',
     },
     ru: {
       missingDraft: 'Не хватает текста черновика.',
+      draftTooLong: `Черновик слишком длинный. Максимум ${MAX_DRAFT_CHARS} символов.`,
       missingInstruction: 'Не хватает инструкции для правки.',
       requestFailed: 'Запрос к ИИ не удался.',
     },
     es: {
       missingDraft: 'Falta el texto del borrador.',
+      draftTooLong: `El borrador es demasiado largo. El maximo es ${MAX_DRAFT_CHARS} caracteres.`,
       missingInstruction: 'Falta la instruccion de edicion.',
       requestFailed: 'La solicitud a la IA fallo.',
     },
     de: {
       missingDraft: 'Entwurfstext fehlt.',
+      draftTooLong: `Der Entwurf ist zu lang. Maximum sind ${MAX_DRAFT_CHARS} Zeichen.`,
       missingInstruction: 'Bearbeitungsanweisung fehlt.',
       requestFailed: 'Die KI-Anfrage ist fehlgeschlagen.',
     },
     fr: {
       missingDraft: 'Le texte du brouillon manque.',
+      draftTooLong: `Le brouillon est trop long. Maximum: ${MAX_DRAFT_CHARS} caracteres.`,
       missingInstruction: "L'instruction de modification manque.",
       requestFailed: "La requete a l'IA a echoue.",
     },
@@ -101,6 +107,9 @@ export async function POST(request: Request) {
     if (payload.mode === 'analyze') {
       if (payload.text.trim().length < 3) {
         return NextResponse.json({ error: messages.missingDraft }, { status: 400 })
+      }
+      if (payload.text.trim().length > MAX_DRAFT_CHARS) {
+        return NextResponse.json({ error: messages.draftTooLong }, { status: 400 })
       }
 
       const slot = inferenceConfig.textAnalysis
@@ -123,6 +132,9 @@ export async function POST(request: Request) {
 
     if (payload.text.trim().length < 3) {
       return NextResponse.json({ error: messages.missingDraft }, { status: 400 })
+    }
+    if (payload.text.trim().length > MAX_DRAFT_CHARS) {
+      return NextResponse.json({ error: messages.draftTooLong }, { status: 400 })
     }
 
     if (!payload.instruction?.trim()) {

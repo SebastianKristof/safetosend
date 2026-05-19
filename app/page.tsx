@@ -19,6 +19,7 @@ import type {
 } from '@/lib/assistant-contracts'
 import type { DraftSnapshot } from '@/lib/assistant-client'
 import { buildAnalysisContextPayload, getLocalizedMeaning } from '@/lib/analysis-state'
+import { MAX_DRAFT_CHARS } from '@/lib/draft-limits'
 import { useAudioRecorder } from '@/hooks/use-audio-recorder'
 
 const STORAGE_KEY = 'safetosend.app.state.v4'
@@ -128,6 +129,7 @@ const UI_COPY = {
     errors: {
       pasteFirst: 'Paste a draft first.',
       addDraft: 'Add a draft first.',
+      draftTooLong: `Draft is too long. Max ${MAX_DRAFT_CHARS} characters.`,
       nothingToCopy: 'Nothing to copy.',
       clipboardEmpty: 'Clipboard is empty.',
       copyFailed: 'Copy failed.',
@@ -242,6 +244,7 @@ const UI_COPY = {
     errors: {
       pasteFirst: 'Сначала вставьте черновик.',
       addDraft: 'Сначала добавьте черновик.',
+      draftTooLong: `Черновик слишком длинный. Максимум ${MAX_DRAFT_CHARS} символов.`,
       nothingToCopy: 'Копировать нечего.',
       clipboardEmpty: 'Буфер обмена пуст.',
       copyFailed: 'Не удалось скопировать текст.',
@@ -356,6 +359,7 @@ const UI_COPY = {
     errors: {
       pasteFirst: 'Primero pega un borrador.',
       addDraft: 'Primero agrega un borrador.',
+      draftTooLong: `El borrador es demasiado largo. Maximo ${MAX_DRAFT_CHARS} caracteres.`,
       nothingToCopy: 'No hay nada para copiar.',
       clipboardEmpty: 'El portapapeles esta vacio.',
       copyFailed: 'No se pudo copiar el texto.',
@@ -470,6 +474,7 @@ const UI_COPY = {
     errors: {
       pasteFirst: 'Fuege zuerst einen Entwurf ein.',
       addDraft: 'Fuege zuerst einen Entwurf hinzu.',
+      draftTooLong: `Der Entwurf ist zu lang. Maximal ${MAX_DRAFT_CHARS} Zeichen.`,
       nothingToCopy: 'Nichts zum Kopieren vorhanden.',
       clipboardEmpty: 'Die Zwischenablage ist leer.',
       copyFailed: 'Der Text konnte nicht kopiert werden.',
@@ -584,6 +589,7 @@ const UI_COPY = {
     errors: {
       pasteFirst: 'Colle dabord un brouillon.',
       addDraft: 'Ajoute dabord un brouillon.',
+      draftTooLong: `Le brouillon est trop long. Maximum ${MAX_DRAFT_CHARS} caracteres.`,
       nothingToCopy: 'Rien a copier.',
       clipboardEmpty: 'Le presse-papiers est vide.',
       copyFailed: 'Impossible de copier le texte.',
@@ -855,6 +861,61 @@ function RewriteIcon() {
     <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
       <path
         d="M7 7h9l-2.5-2.5L15 3l5 5-5 5-1.5-1.5L16 9H7a3 3 0 0 0 0 6h2v2H7a5 5 0 0 1 0-10Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function UndoIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <path
+        d="M9 8V4L3 10l6 6v-4h4a4 4 0 1 1 0 8h-1v2h1a6 6 0 1 0 0-12H9Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function RedoIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <path
+        d="M15 8V4l6 6-6 6v-4h-4a4 4 0 1 0 0 8h1v2h-1a6 6 0 1 1 0-12h4Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function CopyIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <path
+        d="M9 3a2 2 0 0 0-2 2v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-2h1a2 2 0 0 0 2-2V7l-4-4H9Zm8 4h-3V4.5L17 7ZM6 9h8v10H6V9Zm3-4h3v2H9V5Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function PasteIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <path
+        d="M9 2h6a2 2 0 0 1 2 2h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2-2Zm6 4V4H9v2h6Zm4 2H5v12h14V8Zm-9 3h6v2h-6v-2Zm0 4h6v2h-6v-2Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="icon-glyph">
+      <path
+        d="m9.2 16.2-3.4-3.4L4.4 14.2l4.8 4.8L20 8.2l-1.4-1.4-9.4 9.4Z"
         fill="currentColor"
       />
     </svg>
@@ -1214,6 +1275,7 @@ export default function Page() {
     return verdictStyle(analysis.verdict)
   }, [analysis])
   const draftIsStale = Boolean(analysis) && workingText.trim() !== lastAnalyzedDraftRef.current.trim()
+  const draftTooLong = workingText.trim().length > MAX_DRAFT_CHARS
   const analysisHighlights = useMemo<HighlightSpan[]>(() => {
     if (draftIsStale || !analysis?.highlights?.length) {
       return []
@@ -1332,6 +1394,9 @@ export default function Page() {
       setError(copy.errors.pasteFirst)
       return
     }
+    if (source.length > MAX_DRAFT_CHARS) {
+      return
+    }
 
     checkpoint(copy.status.beforeCheck)
     await analyzeCurrentDraft(source)
@@ -1343,6 +1408,9 @@ export default function Page() {
 
     if (source.length < 3) {
       setError(copy.errors.addDraft)
+      return
+    }
+    if (source.length > MAX_DRAFT_CHARS) {
       return
     }
 
@@ -1589,6 +1657,7 @@ export default function Page() {
                 }}
               />
             </div>
+            {draftTooLong ? <p className="field-warning">{copy.errors.draftTooLong}</p> : null}
           </label>
 
           <div className="history-rail" aria-label={copy.panel.changes}>
@@ -1597,32 +1666,40 @@ export default function Page() {
               onClick={undoLastChange}
               disabled={!past.length || interactionBusy}
               type="button"
+              title={copy.buttons.undo}
+              aria-label={copy.buttons.undo}
             >
-              {copy.buttons.undo}
+              <UndoIcon />
             </button>
             <button
               className="ghost-button rail-button"
               onClick={redoLastChange}
               disabled={!future.length || interactionBusy}
               type="button"
+              title={copy.buttons.redo}
+              aria-label={copy.buttons.redo}
             >
-              {copy.buttons.redo}
+              <RedoIcon />
             </button>
             <button
               className="ghost-button rail-button"
               onClick={() => void copyWorkingText()}
               disabled={interactionBusy || !workingText.trim()}
               type="button"
+              title={copied ? copy.buttons.copied : copy.buttons.copy}
+              aria-label={copied ? copy.buttons.copied : copy.buttons.copy}
             >
-              {copied ? copy.buttons.copied : copy.buttons.copy}
+              {copied ? <CheckIcon /> : <CopyIcon />}
             </button>
             <button
               className="ghost-button rail-button"
               onClick={() => void pasteIntoDraft()}
               disabled={interactionBusy}
               type="button"
+              title={copy.buttons.paste}
+              aria-label={copy.buttons.paste}
             >
-              {copy.buttons.paste}
+              <PasteIcon />
             </button>
           </div>
         </div>
@@ -1654,7 +1731,7 @@ export default function Page() {
           <button
             className="primary-button"
             onClick={() => void runCheck()}
-            disabled={interactionBusy || workingText.trim().length < 3}
+            disabled={interactionBusy || workingText.trim().length < 3 || draftTooLong}
             type="button"
           >
             {status === 'analyzing' ? copy.buttons.checking : copy.buttons.check}
@@ -1662,7 +1739,7 @@ export default function Page() {
           <button
             className="secondary-button"
             onClick={() => void runRewrite()}
-            disabled={interactionBusy || !workingText.trim()}
+            disabled={interactionBusy || !workingText.trim() || draftTooLong}
             type="button"
           >
             {status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
@@ -1685,7 +1762,7 @@ export default function Page() {
             <button
               className="secondary-button icon-button edit-button"
               onClick={() => void runRewrite()}
-              disabled={interactionBusy || !workingText.trim()}
+              disabled={interactionBusy || !workingText.trim() || draftTooLong}
               type="button"
               title={status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
               aria-label={status === 'rewriting' ? copy.buttons.submitting : copy.buttons.submit}
