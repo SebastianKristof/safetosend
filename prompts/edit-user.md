@@ -7,6 +7,7 @@ Audience guidance:
 {{audience_description}}
 
 Language: {{language_name}}
+CRITICAL: You MUST respond using ONLY the {{language_name}} language for all explanatory fields including: summary in changes. Do not use any other language regardless of content.
 {{language_instruction}}
 
 Context:
