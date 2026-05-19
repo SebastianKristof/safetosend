@@ -78,7 +78,7 @@ function guessAudioFormat(file: File) {
   return 'webm'
 }
 
-async function transcribeWithOpenRouter(apiKey: string, file: File, model: string) {
+async function transcribeWithOpenRouter(apiKey: string, file: File, model: string): Promise<{ text?: string }> {
   const arrayBuffer = await file.arrayBuffer()
   const base64 = Buffer.from(arrayBuffer).toString('base64')
   const response = await fetch('https://openrouter.ai/api/v1/audio/transcriptions', {
@@ -128,34 +128,6 @@ async function transcribeWithOpenAI(apiKey: string, file: File, model: string): 
     const detail = await response.text().catch(() => '')
     throw new Error(
       `OpenAI transcription failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ''}`,
-    )
-  }
-
-  return (await response.json()) as { text?: string }
-}
-
-async function transcribeWithOpenRouter(apiKey: string, file: File, model: string): Promise<{ text?: string }> {
-  const arrayBuffer = await file.arrayBuffer()
-  const base64 = Buffer.from(arrayBuffer).toString('base64')
-  const response = await fetch('https://openrouter.ai/api/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      input_audio: {
-        data: base64,
-        format: guessAudioFormat(file),
-      },
-      model,
-    }),
-  })
-
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '')
-    throw new Error(
-      `OpenRouter transcription failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ''}`,
     )
   }
 
