@@ -110,6 +110,19 @@ function isInvalidModelError(errorData: { error?: { type?: string; message?: str
   )
 }
 
+function shouldRetryWithOpenAIFallback(
+  status: number,
+  detail: string,
+  errorData: { error?: { type?: string; message?: string } },
+) {
+  if (isInvalidModelError(errorData)) {
+    return true
+  }
+
+  const message = (errorData.error?.message ?? detail).toLowerCase()
+  return status === 404 && message.includes('invalid url')
+}
+
 async function transcribeWithOpenRouter(apiKey: string, file: File, model: string): Promise<{ text?: string }> {
   const arrayBuffer = await file.arrayBuffer()
   const base64 = Buffer.from(arrayBuffer).toString('base64')
@@ -187,12 +200,12 @@ async function transcribeWithOpenAI(apiKey: string, file: File, model: string): 
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
     const errorData = parseErrorPayload(detail)
-    const isModelError = isInvalidModelError(errorData)
+    const shouldRetry = shouldRetryWithOpenAIFallback(response.status, detail, errorData)
 
-    if (isModelError) {
+    if (shouldRetry && model !== FALLBACK_TRANSCRIBE_MODEL_NAME) {
       const fallbackBody = new FormData()
       fallbackBody.append('file', file, file.name || `audio.${guessAudioFormat(file)}`)
-      fallbackBody.append('model', 'whisper-1')
+      fallbackBody.append('model', FALLBACK_TRANSCRIBE_MODEL_NAME)
       fallbackBody.append('response_format', 'json')
 
       // Try with whisper-1 as fallback

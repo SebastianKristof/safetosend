@@ -26,7 +26,7 @@ function withEnv(vars: Record<string, string | undefined>, fn: () => void) {
   }
 }
 
-test('inference config defaults to OpenRouter-ready slugs', async () => {
+test('inference config defaults to OpenAI-ready slugs', async () => {
   const { getInferenceConfig } = await import('../lib/inference-config.ts')
 
   withEnv(
@@ -48,11 +48,11 @@ test('inference config defaults to OpenRouter-ready slugs', async () => {
     () => {
       const config = getInferenceConfig()
 
-      assert.equal(config.textAnalysis.provider, 'openrouter')
+      assert.equal(config.textAnalysis.provider, 'openai')
       assert.equal(config.textAnalysis.modelProvider, 'openai')
       assert.equal(config.textAnalysis.modelName, 'gpt-5.4')
-      assert.equal(config.textGeneration.provider, 'openrouter')
-      assert.equal(config.voice.provider, 'openrouter')
+      assert.equal(config.textGeneration.provider, 'openai')
+      assert.equal(config.voice.provider, 'openai')
       assert.equal(config.voice.modelProvider, 'openai')
       assert.equal(config.voice.modelName, 'gpt-4o-mini-transcribe')
     },
