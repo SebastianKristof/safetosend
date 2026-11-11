@@ -17,9 +17,8 @@ function pickMimeType(): string | null {
   }
 
   const recorder = window.MediaRecorder
-  if (!recorder) {
-    return null
-  }
+  if (!recorder) return null
+  if (typeof recorder.isTypeSupported !== 'function') return ''
 
   const candidates = [
     'audio/webm;codecs=opus',
