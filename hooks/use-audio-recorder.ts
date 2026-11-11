@@ -20,7 +20,7 @@ function pickMimeType(): string | null {
     return null
   }
 
-  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg']
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus', 'audio/ogg']
   for (const type of candidates) {
     if (recorder.isTypeSupported(type)) {
       return type
