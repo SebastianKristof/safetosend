@@ -751,7 +751,7 @@ function mergeTranscribedText(existing: string, transcript: string) {
 
 async function transcribeBlob(blob: Blob): Promise<string> {
   const form = new FormData()
-  const ext = blob.type.includes('ogg') ? 'ogg' : 'webm'
+  const ext = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm'
   form.append('audio', new File([blob], `voice-input.${ext}`, { type: blob.type }))
 
   const endpoint = new URL('/api/transcribe', window.location.origin).toString()
@@ -1630,7 +1630,8 @@ export default function Page() {
 
   const startVoiceCapture = useCallback(
     async (event: ReactPointerEvent<HTMLButtonElement>) => {
-      if (status !== 'idle' || isRecording || isStarting || isTranscribing || !voiceSupported) {
+      if (status !== 'idle' || isRecording || isStarting || isTranscribing ||
+        draftDictation.isRecording || draftDictation.isStarting || draftDictation.isTranscribing || !voiceSupported) {
         return
       }
 
@@ -1645,7 +1646,7 @@ export default function Page() {
 
       await start()
     },
-    [clearError, isRecording, isStarting, isTranscribing, start, status, voiceSupported],
+    [clearError, draftDictation.isRecording, draftDictation.isStarting, draftDictation.isTranscribing, isRecording, isStarting, isTranscribing, start, status, voiceSupported],
   )
 
   const requestVoiceStop = useCallback(() => {
@@ -1942,7 +1943,7 @@ export default function Page() {
               onContextMenu={(event) => {
                 event.preventDefault()
               }}
-              disabled={!voiceSupported || (status !== 'idle' && !isRecording) || isStarting || isTranscribing}
+              disabled={!voiceSupported || (status !== 'idle' && !isRecording) || isStarting || isTranscribing || draftDictation.isRecording || draftDictation.isStarting || draftDictation.isTranscribing}
               type="button"
               title={isRecording || isTranscribing ? copy.buttons.stopMic : copy.buttons.mic}
               aria-label={isRecording || isTranscribing ? copy.buttons.stopMic : copy.buttons.mic}
