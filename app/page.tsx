@@ -1615,14 +1615,18 @@ export default function Page() {
 
   return (
     <main className="page-shell">
-      <header className="hero-bar">
-        <div className="hero-copy">
-          <p className="eyebrow">{copy.hero.eyebrow}</p>
-          <h1>{copy.hero.title}</h1>
-          <p className="subtle">{copy.hero.subtitle}</p>
+      <header className="site-header">
+        <div className="brand-lockup">
+          <span className="brand-icon" aria-hidden="true">
+            <svg viewBox="0 0 36 36" fill="none">
+              <path d="M8 19.5 15.2 26 28 10" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+          <span className="brand-name">{copy.hero.eyebrow}</span>
         </div>
         <div className="hero-actions">
           <label className="header-language" htmlFor="ui-language">
+            <span className="sr-only">{copy.fields.interfaceLanguage}</span>
             <select
               id="ui-language"
               className="control header-select"
@@ -1639,7 +1643,25 @@ export default function Page() {
         </div>
       </header>
 
-      <section className="panel composer-card">
+      <section className="hero-bar">
+        <div className="hero-copy">
+          <p className="eyebrow"><span className="status-indicator" aria-hidden="true" /> {copy.hero.subtitle}</p>
+          <h1>{copy.hero.title}</h1>
+        </div>
+        <div className="hero-art" aria-hidden="true">
+          <span className="art-line art-line-one" />
+          <span className="art-line art-line-two" />
+          <span className="art-line art-line-three" />
+          <span className="art-spark">✳</span>
+        </div>
+      </section>
+
+      <div className="workspace-grid">
+        <section className="panel composer-card">
+          <div className="section-head">
+            <span className="step-number">01</span>
+            <div className="section-heading"><span className="section-title">{copy.panel.kicker}</span><span className="section-subtitle">{copy.panel.title}</span></div>
+          </div>
         <div className="editor-shell">
           <label className="field editor-field">
             <span>{copy.fields.workingText}</span>
@@ -1704,20 +1726,7 @@ export default function Page() {
           </div>
         </div>
 
-        {localizedMeaning ? (
-          <section className="verification-card" aria-labelledby="verification-meaning-title">
-            <div className="verification-card-head">
-              <p className="verification-card-title" id="verification-meaning-title">
-                {copy.analysis.translationTitle}
-              </p>
-              <p className="verification-card-note">{copy.analysis.translationNote}</p>
-            </div>
-            <p className="verification-meaning" lang={locale}>
-              {localizedMeaning}
-            </p>
-          </section>
-        ) : null}
-
+          <div className="composer-actions">
         <div className="audience-row">
           <AudienceDropdown
             label={copy.fields.audience}
@@ -1726,7 +1735,6 @@ export default function Page() {
             onChange={setAudience}
           />
         </div>
-
         <div className="button-grid">
           <button
             className="primary-button"
@@ -1746,6 +1754,8 @@ export default function Page() {
           </button>
         </div>
 
+          </div>
+          <div className="refine-panel">
         <div className="voice-row">
           <label className="field grow">
             <span>{copy.fields.voice}</span>
@@ -1792,7 +1802,6 @@ export default function Page() {
             </button>
           </div>
         </div>
-
         {isRecording || isStarting || isTranscribing ? (
           <div className="voice-status" aria-live="polite">
             <span className="voice-status-label">
@@ -1806,8 +1815,16 @@ export default function Page() {
           </div>
         ) : null}
 
-        {error || recorderError ? <div className="error-banner">{error || recorderError}</div> : null}
+          </div>
+        </section>
 
+        <aside className="insight-column">
+          <section className="panel insights-panel">
+            <div className="section-head">
+              <span className="step-number">02</span>
+              <div className="section-heading"><span className="section-title">{copy.panel.reasons}</span><span className="section-subtitle">{copy.analysis.analysisHighlights}</span></div>
+            </div>
+        {error || recorderError ? <div className="error-banner">{error || recorderError}</div> : null}
         <section className="analysis-card" aria-live="polite">
           <div className="analysis-topline">
             <span className={`verdict-pill ${verdictTone}`}>{verdictLabel}</span>
@@ -1833,8 +1850,25 @@ export default function Page() {
             </div>
           ) : null}
         </section>
+        {localizedMeaning ? (
+          <section className="verification-card" aria-labelledby="verification-meaning-title">
+            <div className="verification-card-head">
+              <p className="verification-card-title" id="verification-meaning-title">
+                {copy.analysis.translationTitle}
+              </p>
+              <p className="verification-card-note">{copy.analysis.translationNote}</p>
+            </div>
+            <p className="verification-meaning" lang={locale}>
+              {localizedMeaning}
+            </p>
+          </section>
+        ) : null}
 
-      </section>
+          </section>
+        </aside>
+      </div>
+
+      <footer className="site-footer"><span>{copy.hero.eyebrow}</span><span>{copy.hero.subtitle}</span></footer>
     </main>
   )
 }
