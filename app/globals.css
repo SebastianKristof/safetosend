@@ -166,6 +166,15 @@ h1 {
 }
 .draft-dictation-button:disabled { opacity: .48; cursor: not-allowed; }
 .draft-dictation-hint { color: #879189; font-size: 11px; line-height: 1.35; }
+.draft-field-meta {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 10px; flex-wrap: wrap;
+}
+.draft-char-counter {
+  font-size: 12px; font-weight: 650; color: #67776b;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.draft-char-counter.over-limit { color: #b2643f; }
 .history-rail {
   position: relative; z-index: 3; display: flex; align-items: center;
   justify-content: flex-end; gap: 3px; padding-top: 3px;
