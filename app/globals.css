@@ -166,6 +166,7 @@ h1 {
 }
 .draft-dictation-button:disabled { opacity: .48; cursor: not-allowed; }
 .draft-dictation-hint { color: #879189; font-size: 11px; line-height: 1.35; }
+.draft-dictation-hint.mic-unavailable { color: #ae6047; }
 .draft-field-meta {
   display: flex; justify-content: space-between; align-items: baseline;
   gap: 10px; flex-wrap: wrap;
