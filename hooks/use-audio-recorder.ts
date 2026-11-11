@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { encodeMonoWav } from '../lib/audio-format'
 
 type RecorderState = {
   isRecording: boolean
@@ -16,11 +17,17 @@ function pickMimeType(): string | null {
   }
 
   const recorder = window.MediaRecorder
-  if (!recorder) {
-    return null
-  }
+  if (!recorder) return null
+  if (typeof recorder.isTypeSupported !== 'function') return ''
 
-  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg']
+  const candidates = [
+    'audio/webm;codecs=opus',
+    'audio/ogg;codecs=opus',
+    'audio/webm',
+    'audio/mp4;codecs=mp4a.40.2',
+    'audio/mp4',
+    'audio/ogg',
+  ]
   for (const type of candidates) {
     if (recorder.isTypeSupported(type)) {
       return type
@@ -31,15 +38,17 @@ function pickMimeType(): string | null {
 }
 
 export function useAudioRecorder() {
-  const isSupported = useMemo(() => {
-    if (typeof window === 'undefined') {
-      return false
-    }
-
-    return Boolean(navigator.mediaDevices && window.MediaRecorder)
+  // Detect after hydration, not while Next.js renders the page on the server.
+  // Web Audio is a fallback when MediaRecorder is unavailable or disabled.
+  const [isSupported, setIsSupported] = useState(false)
+  const [mimeType, setMimeType] = useState<string | null>(null)
+  useEffect(() => {
+    const audioContextAvailable = Boolean(window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)
+    const canOpenMicrophone = typeof navigator.mediaDevices?.getUserMedia === 'function'
+    const canUseMediaRecorder = typeof window.MediaRecorder !== 'undefined'
+    setIsSupported(canOpenMicrophone && (canUseMediaRecorder || audioContextAvailable))
+    setMimeType(pickMimeType())
   }, [])
-
-  const mimeType = useMemo(() => pickMimeType(), [])
 
   const [state, setState] = useState<RecorderState>({
     isRecording: false,
@@ -59,6 +68,14 @@ export function useAudioRecorder() {
   const startTimeRef = useRef<number | null>(null)
   const startTimeoutRef = useRef<number | null>(null)
   const isRecordingRef = useRef(false)
+  const isStartingRef = useRef(false)
+  const captureGenerationRef = useRef(0)
+  const rawContextRef = useRef<AudioContext | null>(null)
+  const rawWorkletRef = useRef<AudioWorkletNode | null>(null)
+  const rawScriptRef = useRef<ScriptProcessorNode | null>(null)
+  const rawChunksRef = useRef<Float32Array[]>([])
+  const rawSampleRateRef = useRef(16_000)
+  const flushResolverRef = useRef<(() => void) | null>(null)
 
   const stopLevelTracking = useCallback(() => {
     if (levelRafRef.current) {
@@ -140,9 +157,13 @@ export function useAudioRecorder() {
   }, [stopLevelTracking])
 
   const start = useCallback(async () => {
+    if (isStartingRef.current || isRecordingRef.current) return
+    isStartingRef.current = true
+    const captureGeneration = ++captureGenerationRef.current
     setState((prev) => ({ ...prev, error: null, isStarting: true }))
 
     if (!isSupported) {
+      isStartingRef.current = false
       setState((prev) => ({
         ...prev,
         error: 'Audio recording is not supported in this browser.',
@@ -151,11 +172,8 @@ export function useAudioRecorder() {
       return
     }
 
-    if (isRecordingRef.current) {
-      return
-    }
-
     if (typeof window !== 'undefined' && !window.isSecureContext) {
+      isStartingRef.current = false
       setState((prev) => ({
         ...prev,
         error: 'Microphone access requires HTTPS (or localhost).',
@@ -172,14 +190,20 @@ export function useAudioRecorder() {
         startTimeoutRef.current = null
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: { ideal: 1 }, echoCancellation: true, noiseSuppression: true },
+      })
+      if (captureGenerationRef.current !== captureGeneration) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
       streamRef.current = stream
       chunksRef.current = []
-      startLevelTracking(stream)
 
       const audioTracks = stream.getAudioTracks()
       if (audioTracks.length === 0) {
         stopTracks()
+        isStartingRef.current = false
         setState((prev) => ({
           ...prev,
           error: 'No audio input device was found.',
@@ -188,7 +212,84 @@ export function useAudioRecorder() {
         return
       }
 
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+      let recorder: MediaRecorder | null = null
+      if (window.MediaRecorder) {
+        try {
+          // Speech does not need music-quality bitrates. Opus ~32 kbps is
+          // typically around 180 KB for a full 45-second dictation.
+          recorder = new MediaRecorder(stream, mimeType
+            ? { mimeType, audioBitsPerSecond: 32_000 }
+            : { audioBitsPerSecond: 32_000 })
+        } catch {
+          // Some browsers expose MediaRecorder but cannot start it.
+          // Fall through to Web Audio PCM capture.
+        }
+      }
+
+      if (!recorder) {
+        stopLevelTracking()
+        const AudioContextCtor = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+        if (!AudioContextCtor) throw new Error('This browser cannot record audio. Use a recent browser and allow microphone access.')
+        const context = new AudioContextCtor()
+        rawContextRef.current = context
+        rawSampleRateRef.current = context.sampleRate
+        rawChunksRef.current = []
+        const source = context.createMediaStreamSource(stream)
+        const silentSink = context.createGain()
+        silentSink.gain.value = 0
+
+        const saveSamples = (samples: Float32Array) => {
+          rawChunksRef.current.push(samples)
+          let sum = 0
+          for (let index = 0; index < samples.length; index += 1) sum += samples[index] * samples[index]
+          const level = Math.min(1, Math.sqrt(sum / samples.length) * 3.2)
+          setState((previous) => Math.abs(previous.level - level) < 0.015 ? previous : { ...previous, level })
+        }
+
+        let workletReady = false
+        if (context.audioWorklet && typeof AudioWorkletNode === 'function') {
+          try {
+            await context.audioWorklet.addModule('/audio-capture-worklet.js')
+            if (captureGenerationRef.current !== captureGeneration) return
+            const node = new AudioWorkletNode(context, 'safetosend-audio-capture')
+            rawWorkletRef.current = node
+            node.port.onmessage = (event: MessageEvent<{ type: string; samples?: Float32Array }>) => {
+              if (event.data.type === 'samples' && event.data.samples?.length) saveSamples(event.data.samples)
+              if (event.data.type === 'flushed') flushResolverRef.current?.()
+            }
+            source.connect(node)
+            node.connect(silentSink)
+            workletReady = true
+          } catch {
+            // Worklet modules can be blocked by restrictive privacy settings.
+          }
+        }
+        if (!workletReady) {
+          // Last-resort compatibility for older browsers without AudioWorklet.
+          const processor = context.createScriptProcessor(4096, 1, 1)
+          rawScriptRef.current = processor
+          processor.onaudioprocess = (event) => {
+            const samples = event.inputBuffer.getChannelData(0)
+            saveSamples(new Float32Array(samples))
+            event.outputBuffer.getChannelData(0).fill(0)
+          }
+          source.connect(processor)
+          processor.connect(silentSink)
+        }
+        silentSink.connect(context.destination)
+        await context.resume()
+        if (captureGenerationRef.current !== captureGeneration) return
+        isStartingRef.current = false
+        isRecordingRef.current = true
+        setState((prev) => ({ ...prev, isRecording: true, isStarting: false, error: null }))
+        return
+      }
+
+      try {
+        startLevelTracking(stream)
+      } catch {
+        // Audio level visualization is optional; recording still works.
+      }
       recorderRef.current = recorder
 
       recorder.ondataavailable = (event) => {
@@ -204,6 +305,7 @@ export function useAudioRecorder() {
         }
 
         isRecordingRef.current = true
+        isStartingRef.current = false
         setState((prev) => ({ ...prev, isRecording: true, isStarting: false }))
       }
 
@@ -257,7 +359,12 @@ export function useAudioRecorder() {
         }
       }, 800)
     } catch (error) {
+      isStartingRef.current = false
       stopTracks()
+      if (rawContextRef.current) {
+        void rawContextRef.current.close().catch(() => {})
+        rawContextRef.current = null
+      }
       const name =
         error && typeof error === 'object' && 'name' in error ? String((error as { name?: unknown }).name) : ''
       const rawMessage = error instanceof Error ? error.message : String(error)
@@ -273,18 +380,47 @@ export function useAudioRecorder() {
       })()
       setState((prev) => ({ ...prev, error: message, isStarting: false }))
     }
-  }, [isSupported, mimeType, startLevelTracking, stopTracks])
+  }, [isSupported, mimeType, startLevelTracking, stopLevelTracking, stopTracks])
 
   const stop = useCallback(async (): Promise<Blob | null> => {
-    if (!recorderRef.current || !isRecordingRef.current) {
-      return null
+    if (!isRecordingRef.current) return null
+
+    if (rawContextRef.current) {
+      // Flush any partially filled worklet buffer before encoding.
+      const context = rawContextRef.current
+      const node = rawWorkletRef.current
+      if (node) {
+        await new Promise<void>((resolve) => {
+          const timer = window.setTimeout(resolve, 250)
+          flushResolverRef.current = () => {
+            window.clearTimeout(timer)
+            resolve()
+          }
+          node.port.postMessage('flush')
+        })
+      }
+      flushResolverRef.current = null
+      const blob = encodeMonoWav(rawChunksRef.current, rawSampleRateRef.current)
+      rawChunksRef.current = []
+      rawWorkletRef.current?.disconnect()
+      rawScriptRef.current?.disconnect()
+      rawWorkletRef.current = null
+      rawScriptRef.current = null
+      rawContextRef.current = null
+      await context.close().catch(() => {})
+      isRecordingRef.current = false
+      setState((prev) => ({ ...prev, isRecording: false, isStarting: false, level: 0 }))
+      stopTracks()
+      return blob
     }
 
+    if (!recorderRef.current) return null
     const recorder = recorderRef.current
     return await new Promise<Blob | null>((resolve) => {
       const handleStop = () => {
         recorder.removeEventListener('stop', handleStop)
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType || 'audio/webm' })
+        recorderRef.current = null
         resolve(blob)
       }
 
@@ -296,9 +432,19 @@ export function useAudioRecorder() {
         resolve(null)
       }
     })
-  }, [])
+  }, [mimeType, stopTracks])
 
   const abort = useCallback(() => {
+    captureGenerationRef.current += 1
+    isStartingRef.current = false
+    const context = rawContextRef.current
+    rawContextRef.current = null
+    rawWorkletRef.current?.disconnect()
+    rawScriptRef.current?.disconnect()
+    rawWorkletRef.current = null
+    rawScriptRef.current = null
+    rawChunksRef.current = []
+    if (context) void context.close().catch(() => {})
     const recorder = recorderRef.current
     if (recorder && isRecordingRef.current) {
       try {

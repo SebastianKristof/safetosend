@@ -21,6 +21,8 @@ import type { DraftSnapshot } from '@/lib/assistant-client'
 import { buildAnalysisContextPayload, getLocalizedMeaning } from '@/lib/analysis-state'
 import { MAX_DRAFT_CHARS } from '@/lib/draft-limits'
 import { useAudioRecorder } from '@/hooks/use-audio-recorder'
+import { useTimedDictation } from '@/hooks/use-timed-dictation'
+import { audioFileExtension } from '@/lib/audio-format'
 
 const STORAGE_KEY = 'safetosend.app.state.v4'
 
@@ -46,6 +48,7 @@ const UI_COPY = {
     fields: {
       interfaceLanguage: 'Interface language',
       workingText: 'Working text',
+      characterCount: "Characters",
       audience: 'Audience',
       voice: 'Voice commands',
     },
@@ -65,6 +68,10 @@ const UI_COPY = {
       submitting: 'Rewriting...',
       mic: 'Hold to speak',
       stopMic: 'Stop recording',
+      dictateDraft: "Dictate",
+      stopDraftDictation: "Stop",
+      transcribingDraft: "Transcribing…",
+      dictationHint: "Up to 45 seconds · added to your message",
     },
     status: {
       idle: 'Ready',
@@ -79,6 +86,7 @@ const UI_COPY = {
       beforeRewrite: 'Before rewrite',
       clipboardPasted: 'Clipboard pasted',
       voiceCommandCaptured: 'Voice instruction captured',
+      draftDictationAdded: "Dictation added",
       draftCopied: 'Draft copied',
       analysisUpdated: 'Analysis updated',
       requestFailed: 'AI request failed.',
@@ -135,7 +143,7 @@ const UI_COPY = {
       clipboardEmpty: 'Clipboard is empty.',
       copyFailed: 'Copy failed.',
       pasteFailed: 'Paste failed.',
-      dictationUnsupported: 'Voice capture is not available in this browser.',
+      dictationUnsupported: 'Microphone unavailable here. Open this site in a normal HTTPS tab and check microphone permissions.',
       dictationFailed: 'Voice capture failed',
       voiceTooShort: 'Hold a little longer to record.',
       couldNotStart: 'Could not start recording.',
@@ -162,6 +170,7 @@ const UI_COPY = {
     fields: {
       interfaceLanguage: 'Язык интерфейса',
       workingText: 'Текст',
+      characterCount: "Символов",
       audience: 'Адресат',
       voice: 'Голосовые команды',
     },
@@ -181,6 +190,10 @@ const UI_COPY = {
       submitting: 'Переписываем...',
       mic: 'Говорить',
       stopMic: 'Стоп запись',
+      dictateDraft: "Диктовать",
+      stopDraftDictation: "Стоп",
+      transcribingDraft: "Распознаём…",
+      dictationHint: "До 45 секунд · добавим к тексту",
     },
     status: {
       idle: 'Готово',
@@ -195,6 +208,7 @@ const UI_COPY = {
       beforeRewrite: 'Перед переписыванием',
       clipboardPasted: 'Текст вставлен',
       voiceCommandCaptured: 'Голосовая инструкция распознана',
+      draftDictationAdded: "Диктовка добавлена",
       draftCopied: 'Текст скопирован',
       analysisUpdated: 'Проверка обновлена',
       requestFailed: 'Запрос к ИИ не удался.',
@@ -251,7 +265,7 @@ const UI_COPY = {
       clipboardEmpty: 'Буфер обмена пуст.',
       copyFailed: 'Не удалось скопировать текст.',
       pasteFailed: 'Не удалось вставить текст.',
-      dictationUnsupported: 'Голосовая запись недоступна в этом браузере.',
+      dictationUnsupported: 'Микрофон недоступен. Откройте сайт напрямую через HTTPS и проверьте разрешение на микрофон.',
       dictationFailed: 'Не удалось распознать голос',
       voiceTooShort: 'Подержите кнопку чуть дольше, чтобы записать.',
       couldNotStart: 'Не удалось начать запись.',
@@ -278,6 +292,7 @@ const UI_COPY = {
     fields: {
       interfaceLanguage: 'Idioma de la interfaz',
       workingText: 'Texto',
+      characterCount: "Caracteres",
       audience: 'Destinatario',
       voice: 'Comandos de voz',
     },
@@ -297,6 +312,10 @@ const UI_COPY = {
       submitting: 'Reescribiendo...',
       mic: 'Mantener para hablar',
       stopMic: 'Detener grabacion',
+      dictateDraft: "Dictar",
+      stopDraftDictation: "Detener",
+      transcribingDraft: "Transcribiendo…",
+      dictationHint: "Hasta 45 segundos · se añade al mensaje",
     },
     status: {
       idle: 'Listo',
@@ -311,6 +330,7 @@ const UI_COPY = {
       beforeRewrite: 'Antes de reescribir',
       clipboardPasted: 'Texto pegado',
       voiceCommandCaptured: 'Instruccion de voz capturada',
+      draftDictationAdded: "Dictado añadido",
       draftCopied: 'Texto copiado',
       analysisUpdated: 'Analisis actualizado',
       requestFailed: 'La solicitud a la IA fallo.',
@@ -367,7 +387,7 @@ const UI_COPY = {
       clipboardEmpty: 'El portapapeles esta vacio.',
       copyFailed: 'No se pudo copiar el texto.',
       pasteFailed: 'No se pudo pegar el texto.',
-      dictationUnsupported: 'La captura de voz no esta disponible en este navegador.',
+      dictationUnsupported: 'El micrófono no está disponible. Abre el sitio directamente con HTTPS y revisa los permisos.',
       dictationFailed: 'La captura de voz fallo',
       voiceTooShort: 'Mantén pulsado un poco más para grabar.',
       couldNotStart: 'No se pudo iniciar la grabacion.',
@@ -394,6 +414,7 @@ const UI_COPY = {
     fields: {
       interfaceLanguage: 'Sprache der Oberflaeche',
       workingText: 'Text',
+      characterCount: "Zeichen",
       audience: 'Empfaenger',
       voice: 'Sprachbefehle',
     },
@@ -413,6 +434,10 @@ const UI_COPY = {
       submitting: 'Wird ueberarbeitet...',
       mic: 'Gedrueckt halten',
       stopMic: 'Aufnahme stoppen',
+      dictateDraft: "Diktieren",
+      stopDraftDictation: "Stopp",
+      transcribingDraft: "Transkribiere…",
+      dictationHint: "Bis zu 45 Sekunden · wird zum Text hinzugefügt",
     },
     status: {
       idle: 'Bereit',
@@ -427,6 +452,7 @@ const UI_COPY = {
       beforeRewrite: 'Vor der Ueberarbeitung',
       clipboardPasted: 'Text eingefuegt',
       voiceCommandCaptured: 'Sprachanweisung erfasst',
+      draftDictationAdded: "Diktat hinzugefügt",
       draftCopied: 'Text kopiert',
       analysisUpdated: 'Analyse aktualisiert',
       requestFailed: 'Die KI-Anfrage ist fehlgeschlagen.',
@@ -483,7 +509,7 @@ const UI_COPY = {
       clipboardEmpty: 'Die Zwischenablage ist leer.',
       copyFailed: 'Der Text konnte nicht kopiert werden.',
       pasteFailed: 'Der Text konnte nicht eingefuegt werden.',
-      dictationUnsupported: 'Sprachaufnahme ist in diesem Browser nicht verfuegbar.',
+      dictationUnsupported: 'Mikrofon nicht verfügbar. Öffne die Seite direkt über HTTPS und prüfe die Mikrofonberechtigung.',
       dictationFailed: 'Sprachaufnahme fehlgeschlagen',
       voiceTooShort: 'Zum Aufnehmen etwas laenger gedrueckt halten.',
       couldNotStart: 'Aufnahme konnte nicht gestartet werden.',
@@ -510,6 +536,7 @@ const UI_COPY = {
     fields: {
       interfaceLanguage: 'Langue de l interface',
       workingText: 'Texte',
+      characterCount: "Caractères",
       audience: 'Destinataire',
       voice: 'Commandes vocales',
     },
@@ -529,6 +556,10 @@ const UI_COPY = {
       submitting: 'Reecriture...',
       mic: 'Maintenir pour parler',
       stopMic: 'Arreter l enregistrement',
+      dictateDraft: "Dicter",
+      stopDraftDictation: "Arrêter",
+      transcribingDraft: "Transcription…",
+      dictationHint: "45 secondes maximum · ajouté au message",
     },
     status: {
       idle: 'Pret',
@@ -543,6 +574,7 @@ const UI_COPY = {
       beforeRewrite: 'Avant reecriture',
       clipboardPasted: 'Texte colle',
       voiceCommandCaptured: 'Instruction vocale capturee',
+      draftDictationAdded: "Dictée ajoutée",
       draftCopied: 'Texte copie',
       analysisUpdated: 'Analyse mise a jour',
       requestFailed: "La requete a l'IA a echoue.",
@@ -599,7 +631,7 @@ const UI_COPY = {
       clipboardEmpty: 'Le presse-papiers est vide.',
       copyFailed: 'Impossible de copier le texte.',
       pasteFailed: 'Impossible de coller le texte.',
-      dictationUnsupported: "La capture vocale n'est pas disponible dans ce navigateur.",
+      dictationUnsupported: "Microphone indisponible. Ouvrez le site directement en HTTPS et vérifiez les autorisations.",
       dictationFailed: 'La capture vocale a echoue',
       voiceTooShort: 'Maintiens un peu plus longtemps pour enregistrer.',
       couldNotStart: "Impossible de demarrer l enregistrement.",
@@ -705,7 +737,7 @@ function defaultRewriteInstruction(locale: Locale) {
   return DEFAULT_REWRITE_INSTRUCTION[locale]
 }
 
-const MAX_RECORDING_SECONDS = 60
+const MAX_RECORDING_SECONDS = 45
 const MIN_TRANSCRIPTION_BYTES = 1200
 
 function mergeTranscribedText(existing: string, transcript: string) {
@@ -725,7 +757,7 @@ function mergeTranscribedText(existing: string, transcript: string) {
 
 async function transcribeBlob(blob: Blob): Promise<string> {
   const form = new FormData()
-  const ext = blob.type.includes('ogg') ? 'ogg' : 'webm'
+  const ext = audioFileExtension(blob.type)
   form.append('audio', new File([blob], `voice-input.${ext}`, { type: blob.type }))
 
   const endpoint = new URL('/api/transcribe', window.location.origin).toString()
@@ -1005,6 +1037,7 @@ function DraftEditor({
       />
       <textarea
         ref={editorRef}
+        id="main-draft"
         className="text-input draft-input editor-textarea"
         value={value}
         onChange={(event) => onChange(normalizeEditorText(event.currentTarget.value))}
@@ -1351,6 +1384,26 @@ export default function Page() {
     setFuture([])
   }
 
+  // Draft dictation appends a new paragraph; the original message is never replaced.
+  function addDictationToDraft(transcript: string) {
+    const nextText = mergeTranscribedText(workingText, transcript)
+    if (nextText === workingText) return
+
+    checkpoint(copy.status.draftDictationAdded)
+    editorSelectionRef.current = { start: nextText.length, end: nextText.length }
+    setWorkingText(nextText)
+    setVersion((current) => current + 1)
+    setLastChangeNote(copy.status.draftDictationAdded)
+    setLastChanges([])
+    setError(null)
+  }
+
+  const draftDictation = useTimedDictation({
+    maxSeconds: MAX_RECORDING_SECONDS,
+    transcribe: transcribeBlob,
+    onTranscript: addDictationToDraft,
+  })
+
   async function analyzeCurrentDraft(
     textToAnalyze: string,
     options?: { commitDraft?: boolean; preserveNote?: boolean },
@@ -1583,7 +1636,8 @@ export default function Page() {
 
   const startVoiceCapture = useCallback(
     async (event: ReactPointerEvent<HTMLButtonElement>) => {
-      if (status !== 'idle' || isRecording || isStarting || isTranscribing || !voiceSupported) {
+      if (status !== 'idle' || isRecording || isStarting || isTranscribing ||
+        draftDictation.isRecording || draftDictation.isStarting || draftDictation.isTranscribing || !voiceSupported) {
         return
       }
 
@@ -1598,7 +1652,7 @@ export default function Page() {
 
       await start()
     },
-    [clearError, isRecording, isStarting, isTranscribing, start, status, voiceSupported],
+    [clearError, draftDictation.isRecording, draftDictation.isStarting, draftDictation.isTranscribing, isRecording, isStarting, isTranscribing, start, status, voiceSupported],
   )
 
   const requestVoiceStop = useCallback(() => {
@@ -1622,7 +1676,7 @@ export default function Page() {
   }, [isRecording, isTranscribing, stopAndTranscribe])
 
   const verdictLabel = analysis ? localizedVerdict(analysis.verdict, copy) : copy.panel.ready
-  const interactionBusy = status !== 'idle' || isRecording || isStarting || isTranscribing
+  const interactionBusy = status !== 'idle' || isRecording || isStarting || isTranscribing || draftDictation.isRecording || draftDictation.isStarting || draftDictation.isTranscribing
 
   // Reveal fresh results only after a requested analysis, not when restoring a saved draft.
   useEffect(() => {
@@ -1739,8 +1793,33 @@ export default function Page() {
             <div className="section-heading"><span className="section-title">{copy.workspace.draft}</span><span className="section-subtitle">{copy.panel.kicker}</span></div>
           </div>
         <div className="editor-shell">
-          <label className="field editor-field">
-            <span>{copy.fields.workingText}</span>
+          <div className="field editor-field">
+            <div className="draft-field-heading">
+              <label htmlFor="main-draft">{copy.fields.workingText}</label>
+              <button
+                type="button"
+                className={`draft-dictation-button ${draftDictation.isRecording ? 'is-recording' : ''}`}
+                onClick={() => void (draftDictation.isRecording ? draftDictation.stop() : draftDictation.start())}
+                disabled={
+                  draftDictation.isTranscribing ||
+                  draftDictation.isStarting ||
+                  (!draftDictation.isRecording && (status !== 'idle' || isRecording || isStarting || isTranscribing || !draftDictation.isSupported))
+                }
+                aria-pressed={draftDictation.isRecording}
+                title={draftDictation.isSupported ? copy.buttons.dictationHint : copy.errors.dictationUnsupported}
+              >
+                {draftDictation.isTranscribing ? <span className="voice-spinner" aria-hidden="true" /> : draftDictation.isRecording ? <StopGlyph /> : <MicIcon />}
+                <span>
+                  {draftDictation.isTranscribing
+                    ? copy.buttons.transcribingDraft
+                    : draftDictation.isRecording
+                      ? `${copy.buttons.stopDraftDictation} · ${Math.floor(draftDictation.remainingSeconds / 60)}:${String(draftDictation.remainingSeconds % 60).padStart(2, '0')}`
+                      : draftDictation.isStarting
+                        ? copy.status.listening
+                        : copy.buttons.dictateDraft}
+                </span>
+              </button>
+            </div>
             <div className="editor-surface">
               <DraftEditor
                 value={workingText}
@@ -1755,8 +1834,17 @@ export default function Page() {
                 }}
               />
             </div>
-            {draftTooLong ? <p className="field-warning">{copy.errors.draftTooLong}</p> : null}
-          </label>
+            <div className="draft-field-meta">
+              <p className={`draft-dictation-hint ${!draftDictation.isSupported ? 'mic-unavailable' : ''}`}>{draftDictation.isSupported ? copy.buttons.dictationHint : copy.errors.dictationUnsupported}</p>
+              <span
+                className={`draft-char-counter ${draftTooLong ? 'over-limit' : ''}`}
+                aria-label={`${copy.fields.characterCount}: ${workingText.trim().length} / ${MAX_DRAFT_CHARS}`}
+              >
+                {workingText.trim().length.toLocaleString(locale)} / {MAX_DRAFT_CHARS.toLocaleString(locale)}
+              </span>
+            </div>
+            {draftTooLong ? <p className="field-warning" role="status">{copy.errors.draftTooLong}</p> : null}
+          </div>
 
           <div className="history-rail" aria-label={copy.panel.changes}>
             <button
@@ -1869,7 +1957,7 @@ export default function Page() {
               onContextMenu={(event) => {
                 event.preventDefault()
               }}
-              disabled={!voiceSupported || (status !== 'idle' && !isRecording) || isStarting || isTranscribing}
+              disabled={!voiceSupported || (status !== 'idle' && !isRecording) || isStarting || isTranscribing || draftDictation.isRecording || draftDictation.isStarting || draftDictation.isTranscribing}
               type="button"
               title={isRecording || isTranscribing ? copy.buttons.stopMic : copy.buttons.mic}
               aria-label={isRecording || isTranscribing ? copy.buttons.stopMic : copy.buttons.mic}
@@ -1893,7 +1981,7 @@ export default function Page() {
         ) : null}
 
           </div>
-          {error || recorderError ? <div className="error-banner" role="alert">{error || recorderError}</div> : null}
+          {error || recorderError || draftDictation.error ? <div className="error-banner" role="alert">{error || recorderError || draftDictation.error}</div> : null}
         </section>
 
         {renderReviewPanel('desktop')}
