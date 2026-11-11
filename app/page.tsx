@@ -26,6 +26,7 @@ const STORAGE_KEY = 'safetosend.app.state.v4'
 
 const UI_COPY = {
   en: {
+    workspace: { draft: "Your message", review: "Message review", reviewHint: "Tone, intent, and possible friction" },
     hero: {
       eyebrow: 'SafeToSend',
       title: 'Is it safe to send?',
@@ -141,6 +142,7 @@ const UI_COPY = {
     },
   },
   ru: {
+    workspace: { draft: "Ваше сообщение", review: "Анализ сообщения", reviewHint: "Тон, смысл и возможные риски" },
     hero: {
       eyebrow: 'SafeToSend',
       title: 'Безопасно ли отправлять?',
@@ -256,6 +258,7 @@ const UI_COPY = {
     },
   },
   es: {
+    workspace: { draft: "Tu mensaje", review: "Revisión del mensaje", reviewHint: "Tono, intención y posibles problemas" },
     hero: {
       eyebrow: 'SafeToSend',
       title: 'Es seguro enviarlo?',
@@ -371,6 +374,7 @@ const UI_COPY = {
     },
   },
   de: {
+    workspace: { draft: "Deine Nachricht", review: "Nachrichtenanalyse", reviewHint: "Ton, Absicht und mögliche Missverständnisse" },
     hero: {
       eyebrow: 'SafeToSend',
       title: 'Ist das sicher zu senden?',
@@ -486,6 +490,7 @@ const UI_COPY = {
     },
   },
   fr: {
+    workspace: { draft: "Votre message", review: "Analyse du message", reviewHint: "Ton, intention et risques de malentendu" },
     hero: {
       eyebrow: 'SafeToSend',
       title: 'Est-ce prudent de l envoyer ?',
@@ -1660,7 +1665,7 @@ export default function Page() {
         <section className="panel composer-card">
           <div className="section-head">
             <span className="step-number">01</span>
-            <div className="section-heading"><span className="section-title">{copy.panel.kicker}</span><span className="section-subtitle">{copy.panel.title}</span></div>
+            <div className="section-heading"><span className="section-title">{copy.workspace.draft}</span><span className="section-subtitle">{copy.panel.kicker}</span></div>
           </div>
         <div className="editor-shell">
           <label className="field editor-field">
@@ -1816,16 +1821,24 @@ export default function Page() {
         ) : null}
 
           </div>
+          {error || recorderError ? <div className="error-banner" role="alert">{error || recorderError}</div> : null}
         </section>
 
         <aside className="insight-column">
           <section className="panel insights-panel">
             <div className="section-head">
               <span className="step-number">02</span>
-              <div className="section-heading"><span className="section-title">{copy.panel.reasons}</span><span className="section-subtitle">{copy.analysis.analysisHighlights}</span></div>
+              <div className="section-heading"><span className="section-title">{copy.workspace.review}</span><span className="section-subtitle">{copy.workspace.reviewHint}</span></div>
             </div>
-        {error || recorderError ? <div className="error-banner">{error || recorderError}</div> : null}
         <section className="analysis-card" aria-live="polite">
+          {!analysis ? (
+            <div className="empty-readout" aria-hidden="true">
+              <svg viewBox="0 0 104 100" fill="none">
+                <path d="M21 30C21 21.2 28.2 14 37 14h41c8.8 0 16 7.2 16 16v31c0 8.8-7.2 16-16 16H51L31 91V77h-1c-5 0-9-4-9-9V30Z" stroke="currentColor" strokeWidth="2.3" />
+                <path d="m40 47 12 11 22-24" stroke="currentColor" strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          ) : null}
           <div className="analysis-topline">
             <span className={`verdict-pill ${verdictTone}`}>{verdictLabel}</span>
           </div>
