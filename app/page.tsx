@@ -26,6 +26,7 @@ const STORAGE_KEY = 'safetosend.app.state.v4'
 
 const UI_COPY = {
   en: {
+    workspace: { draft: "Your message", review: "Message review", reviewHint: "Tone, intent, and possible friction" },
     hero: {
       eyebrow: 'SafeToSend',
       title: 'Is it safe to send?',
@@ -141,6 +142,7 @@ const UI_COPY = {
     },
   },
   ru: {
+    workspace: { draft: "Ваше сообщение", review: "Анализ сообщения", reviewHint: "Тон, смысл и возможные риски" },
     hero: {
       eyebrow: 'SafeToSend',
       title: 'Безопасно ли отправлять?',
@@ -256,6 +258,7 @@ const UI_COPY = {
     },
   },
   es: {
+    workspace: { draft: "Tu mensaje", review: "Revisión del mensaje", reviewHint: "Tono, intención y posibles problemas" },
     hero: {
       eyebrow: 'SafeToSend',
       title: 'Es seguro enviarlo?',
@@ -371,6 +374,7 @@ const UI_COPY = {
     },
   },
   de: {
+    workspace: { draft: "Deine Nachricht", review: "Nachrichtenanalyse", reviewHint: "Ton, Absicht und mögliche Missverständnisse" },
     hero: {
       eyebrow: 'SafeToSend',
       title: 'Ist das sicher zu senden?',
@@ -486,6 +490,7 @@ const UI_COPY = {
     },
   },
   fr: {
+    workspace: { draft: "Votre message", review: "Analyse du message", reviewHint: "Ton, intention et risques de malentendu" },
     hero: {
       eyebrow: 'SafeToSend',
       title: 'Est-ce prudent de l envoyer ?',
@@ -1156,6 +1161,8 @@ export default function Page() {
   const hydratedRef = useRef(false)
   const lastAnalyzedDraftRef = useRef('')
   const editorSelectionRef = useRef<EditorSelection | null>(null)
+  const mobileReviewRef = useRef<HTMLElement | null>(null)
+  const shouldRevealReviewRef = useRef(false)
   const recorder = useAudioRecorder()
   const {
     isSupported: voiceSupported,
@@ -1381,6 +1388,7 @@ export default function Page() {
         setLastChangeNote(copy.status.analysisUpdated)
       }
     } catch (err) {
+      shouldRevealReviewRef.current = false
       setError(err instanceof Error ? err.message : copy.status.analysisFailed)
     } finally {
       setStatus('idle')
@@ -1399,6 +1407,7 @@ export default function Page() {
     }
 
     checkpoint(copy.status.beforeCheck)
+    shouldRevealReviewRef.current = true
     await analyzeCurrentDraft(source)
   }
 
@@ -1415,6 +1424,7 @@ export default function Page() {
     }
 
     checkpoint(copy.status.beforeRewrite)
+    shouldRevealReviewRef.current = true
     setStatus('rewriting')
     setError(null)
 
@@ -1441,6 +1451,7 @@ export default function Page() {
       lastAnalyzedDraftRef.current = result.updatedText
       await analyzeCurrentDraft(result.updatedText, { preserveNote: true })
     } catch (err) {
+      shouldRevealReviewRef.current = false
       setError(err instanceof Error ? err.message : copy.status.rewriteFailed)
       setStatus('idle')
     }
@@ -1613,16 +1624,85 @@ export default function Page() {
   const verdictLabel = analysis ? localizedVerdict(analysis.verdict, copy) : copy.panel.ready
   const interactionBusy = status !== 'idle' || isRecording || isStarting || isTranscribing
 
+  // Reveal fresh results only after a requested analysis, not when restoring a saved draft.
+  useEffect(() => {
+    if (status !== 'idle' || !analysis || !shouldRevealReviewRef.current) return
+    shouldRevealReviewRef.current = false
+    if (!window.matchMedia('(max-width: 760px)').matches) return
+
+    const panel = mobileReviewRef.current
+    if (!panel) return
+    const bounds = panel.getBoundingClientRect()
+    // Keep the user's scroll position when the result is already in view.
+    if (bounds.top >= 0 && bounds.top < window.innerHeight - 140) return
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    panel.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' })
+  }, [analysis, status])
+
+  const renderReviewPanel = (placement: 'mobile' | 'desktop') => (
+    <aside className={`insight-column ${placement}-review`} ref={placement === 'mobile' ? mobileReviewRef : undefined}>
+          <section className="panel insights-panel">
+            <div className="section-head">
+              <span className="step-number">02</span>
+              <div className="section-heading"><span className="section-title">{copy.workspace.review}</span><span className="section-subtitle">{copy.workspace.reviewHint}</span></div>
+            </div>
+        <section className="analysis-card" aria-live="polite">
+          <div className="analysis-topline">
+            <span className={`verdict-pill ${verdictTone}`}>{verdictLabel}</span>
+          </div>
+          <p className="analysis-meta">
+            {analysis
+            ? `${copy.analysis.likelyIntent}: ${analysis.inferredGoal} · ${copy.analysis.tone}: ${analysis.recommendedTone}`
+            : copy.analysis.resultsPlaceholder}
+          </p>
+          {analysis ? (
+            <div className="analysis-reasons">
+              <p className="analysis-reasons-label">{copy.panel.reasons}</p>
+              <p className="reason-text">{analysis.reason}</p>
+              {analysisHighlightReasons.length ? (
+                <ul className="reason-notes">
+                  {analysisHighlightReasons.map((item, index) => (
+                    <li key={`${item.tone}-${item.reason}-${index}`} className={`reason-note ${item.tone}`}>
+                      {item.reason}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+        {localizedMeaning ? (
+          <section className="verification-card" aria-labelledby={`verification-meaning-title-${placement}`}>
+            <div className="verification-card-head">
+              <p className="verification-card-title" id={`verification-meaning-title-${placement}`}>
+                {copy.analysis.translationTitle}
+              </p>
+              <p className="verification-card-note">{copy.analysis.translationNote}</p>
+            </div>
+            <p className="verification-meaning" lang={locale}>
+              {localizedMeaning}
+            </p>
+          </section>
+        ) : null}
+
+          </section>
+        </aside>
+  )
+
   return (
     <main className="page-shell">
-      <header className="hero-bar">
-        <div className="hero-copy">
-          <p className="eyebrow">{copy.hero.eyebrow}</p>
-          <h1>{copy.hero.title}</h1>
-          <p className="subtle">{copy.hero.subtitle}</p>
+      <header className="site-header">
+        <div className="brand-lockup">
+          <span className="brand-icon" aria-hidden="true">
+            <svg viewBox="0 0 36 36" fill="none">
+              <path d="M8 19.5 15.2 26 28 10" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+          <span className="brand-name">{copy.hero.eyebrow}</span>
         </div>
         <div className="hero-actions">
           <label className="header-language" htmlFor="ui-language">
+            <span className="sr-only">{copy.fields.interfaceLanguage}</span>
             <select
               id="ui-language"
               className="control header-select"
@@ -1639,7 +1719,25 @@ export default function Page() {
         </div>
       </header>
 
-      <section className="panel composer-card">
+      <section className="hero-bar">
+        <div className="hero-copy">
+          <p className="eyebrow"><span className="status-indicator" aria-hidden="true" /> {copy.hero.subtitle}</p>
+          <h1>{copy.hero.title}</h1>
+        </div>
+        <div className="hero-art" aria-hidden="true">
+          <span className="art-line art-line-one" />
+          <span className="art-line art-line-two" />
+          <span className="art-line art-line-three" />
+          <span className="art-spark">✳</span>
+        </div>
+      </section>
+
+      <div className="workspace-grid">
+        <section className="panel composer-card">
+          <div className="section-head">
+            <span className="step-number">01</span>
+            <div className="section-heading"><span className="section-title">{copy.workspace.draft}</span><span className="section-subtitle">{copy.panel.kicker}</span></div>
+          </div>
         <div className="editor-shell">
           <label className="field editor-field">
             <span>{copy.fields.workingText}</span>
@@ -1704,20 +1802,7 @@ export default function Page() {
           </div>
         </div>
 
-        {localizedMeaning ? (
-          <section className="verification-card" aria-labelledby="verification-meaning-title">
-            <div className="verification-card-head">
-              <p className="verification-card-title" id="verification-meaning-title">
-                {copy.analysis.translationTitle}
-              </p>
-              <p className="verification-card-note">{copy.analysis.translationNote}</p>
-            </div>
-            <p className="verification-meaning" lang={locale}>
-              {localizedMeaning}
-            </p>
-          </section>
-        ) : null}
-
+          <div className="composer-actions">
         <div className="audience-row">
           <AudienceDropdown
             label={copy.fields.audience}
@@ -1726,7 +1811,6 @@ export default function Page() {
             onChange={setAudience}
           />
         </div>
-
         <div className="button-grid">
           <button
             className="primary-button"
@@ -1746,6 +1830,9 @@ export default function Page() {
           </button>
         </div>
 
+          </div>
+          {analysis ? renderReviewPanel('mobile') : null}
+          <div className="refine-panel">
         <div className="voice-row">
           <label className="field grow">
             <span>{copy.fields.voice}</span>
@@ -1792,7 +1879,6 @@ export default function Page() {
             </button>
           </div>
         </div>
-
         {isRecording || isStarting || isTranscribing ? (
           <div className="voice-status" aria-live="polite">
             <span className="voice-status-label">
@@ -1806,35 +1892,14 @@ export default function Page() {
           </div>
         ) : null}
 
-        {error || recorderError ? <div className="error-banner">{error || recorderError}</div> : null}
-
-        <section className="analysis-card" aria-live="polite">
-          <div className="analysis-topline">
-            <span className={`verdict-pill ${verdictTone}`}>{verdictLabel}</span>
           </div>
-          <p className="analysis-meta">
-            {analysis
-            ? `${copy.analysis.likelyIntent}: ${analysis.inferredGoal} · ${copy.analysis.tone}: ${analysis.recommendedTone}`
-            : copy.analysis.resultsPlaceholder}
-          </p>
-          {analysis ? (
-            <div className="analysis-reasons">
-              <p className="analysis-reasons-label">{copy.panel.reasons}</p>
-              <p className="reason-text">{analysis.reason}</p>
-              {analysisHighlightReasons.length ? (
-                <ul className="reason-notes">
-                  {analysisHighlightReasons.map((item, index) => (
-                    <li key={`${item.tone}-${item.reason}-${index}`} className={`reason-note ${item.tone}`}>
-                      {item.reason}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          ) : null}
+          {error || recorderError ? <div className="error-banner" role="alert">{error || recorderError}</div> : null}
         </section>
 
-      </section>
+        {renderReviewPanel('desktop')}
+      </div>
+
+      <footer className="site-footer"><span>{copy.hero.eyebrow}</span><span>{copy.hero.subtitle}</span></footer>
     </main>
   )
 }
