@@ -47,6 +47,7 @@ const UI_COPY = {
     fields: {
       interfaceLanguage: 'Interface language',
       workingText: 'Working text',
+      characterCount: "Characters",
       audience: 'Audience',
       voice: 'Voice commands',
     },
@@ -69,7 +70,7 @@ const UI_COPY = {
       dictateDraft: "Dictate",
       stopDraftDictation: "Stop",
       transcribingDraft: "Transcribing…",
-      dictationHint: "Up to 1 minute · added to your message",
+      dictationHint: "Up to 45 seconds · added to your message",
     },
     status: {
       idle: 'Ready',
@@ -168,6 +169,7 @@ const UI_COPY = {
     fields: {
       interfaceLanguage: 'Язык интерфейса',
       workingText: 'Текст',
+      characterCount: "Символов",
       audience: 'Адресат',
       voice: 'Голосовые команды',
     },
@@ -190,7 +192,7 @@ const UI_COPY = {
       dictateDraft: "Диктовать",
       stopDraftDictation: "Стоп",
       transcribingDraft: "Распознаём…",
-      dictationHint: "До 1 минуты · добавим к тексту",
+      dictationHint: "До 45 секунд · добавим к тексту",
     },
     status: {
       idle: 'Готово',
@@ -289,6 +291,7 @@ const UI_COPY = {
     fields: {
       interfaceLanguage: 'Idioma de la interfaz',
       workingText: 'Texto',
+      characterCount: "Caracteres",
       audience: 'Destinatario',
       voice: 'Comandos de voz',
     },
@@ -311,7 +314,7 @@ const UI_COPY = {
       dictateDraft: "Dictar",
       stopDraftDictation: "Detener",
       transcribingDraft: "Transcribiendo…",
-      dictationHint: "Hasta 1 minuto · se añade al mensaje",
+      dictationHint: "Hasta 45 segundos · se añade al mensaje",
     },
     status: {
       idle: 'Listo',
@@ -410,6 +413,7 @@ const UI_COPY = {
     fields: {
       interfaceLanguage: 'Sprache der Oberflaeche',
       workingText: 'Text',
+      characterCount: "Zeichen",
       audience: 'Empfaenger',
       voice: 'Sprachbefehle',
     },
@@ -432,7 +436,7 @@ const UI_COPY = {
       dictateDraft: "Diktieren",
       stopDraftDictation: "Stopp",
       transcribingDraft: "Transkribiere…",
-      dictationHint: "Bis zu 1 Minute · wird zum Text hinzugefügt",
+      dictationHint: "Bis zu 45 Sekunden · wird zum Text hinzugefügt",
     },
     status: {
       idle: 'Bereit',
@@ -531,6 +535,7 @@ const UI_COPY = {
     fields: {
       interfaceLanguage: 'Langue de l interface',
       workingText: 'Texte',
+      characterCount: "Caractères",
       audience: 'Destinataire',
       voice: 'Commandes vocales',
     },
@@ -553,7 +558,7 @@ const UI_COPY = {
       dictateDraft: "Dicter",
       stopDraftDictation: "Arrêter",
       transcribingDraft: "Transcription…",
-      dictationHint: "Jusqu’à 1 minute · ajouté au message",
+      dictationHint: "45 secondes maximum · ajouté au message",
     },
     status: {
       idle: 'Pret',
@@ -731,7 +736,7 @@ function defaultRewriteInstruction(locale: Locale) {
   return DEFAULT_REWRITE_INSTRUCTION[locale]
 }
 
-const MAX_RECORDING_SECONDS = 60
+const MAX_RECORDING_SECONDS = 45
 const MIN_TRANSCRIPTION_BYTES = 1200
 
 function mergeTranscribedText(existing: string, transcript: string) {
@@ -1828,8 +1833,16 @@ export default function Page() {
                 }}
               />
             </div>
-            {draftTooLong ? <p className="field-warning">{copy.errors.draftTooLong}</p> : null}
-            <p className="draft-dictation-hint">{copy.buttons.dictationHint}</p>
+            <div className="draft-field-meta">
+              <p className="draft-dictation-hint">{copy.buttons.dictationHint}</p>
+              <span
+                className={`draft-char-counter ${draftTooLong ? 'over-limit' : ''}`}
+                aria-label={`${copy.fields.characterCount}: ${workingText.trim().length} / ${MAX_DRAFT_CHARS}`}
+              >
+                {workingText.trim().length.toLocaleString(locale)} / {MAX_DRAFT_CHARS.toLocaleString(locale)}
+              </span>
+            </div>
+            {draftTooLong ? <p className="field-warning" role="status">{copy.errors.draftTooLong}</p> : null}
           </div>
 
           <div className="history-rail" aria-label={copy.panel.changes}>
