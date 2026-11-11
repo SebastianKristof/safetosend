@@ -1646,7 +1646,7 @@ export default function Page() {
               <span className="step-number">02</span>
               <div className="section-heading"><span className="section-title">{copy.workspace.review}</span><span className="section-subtitle">{copy.workspace.reviewHint}</span></div>
             </div>
-        <section className="analysis-card" aria-live={placement === 'mobile' ? 'polite' : 'off'}>
+        <section className="analysis-card" aria-live="polite">
           <div className="analysis-topline">
             <span className={`verdict-pill ${verdictTone}`}>{verdictLabel}</span>
           </div>
