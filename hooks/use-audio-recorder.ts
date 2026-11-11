@@ -45,7 +45,9 @@ export function useAudioRecorder() {
   const [mimeType, setMimeType] = useState<string | null>(null)
   useEffect(() => {
     const audioContextAvailable = Boolean(window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)
-    setIsSupported(Boolean(navigator.mediaDevices?.getUserMedia && (window.MediaRecorder || audioContextAvailable)))
+    const canOpenMicrophone = typeof navigator.mediaDevices?.getUserMedia === 'function'
+    const canUseMediaRecorder = typeof window.MediaRecorder !== 'undefined'
+    setIsSupported(canOpenMicrophone && (canUseMediaRecorder || audioContextAvailable))
     setMimeType(pickMimeType())
   }, [])
 
