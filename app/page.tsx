@@ -21,6 +21,7 @@ import type { DraftSnapshot } from '@/lib/assistant-client'
 import { buildAnalysisContextPayload, getLocalizedMeaning } from '@/lib/analysis-state'
 import { MAX_DRAFT_CHARS } from '@/lib/draft-limits'
 import { useAudioRecorder } from '@/hooks/use-audio-recorder'
+import { useTimedDictation } from '@/hooks/use-timed-dictation'
 
 const STORAGE_KEY = 'safetosend.app.state.v4'
 
@@ -65,6 +66,10 @@ const UI_COPY = {
       submitting: 'Rewriting...',
       mic: 'Hold to speak',
       stopMic: 'Stop recording',
+      dictateDraft: "Dictate",
+      stopDraftDictation: "Stop",
+      transcribingDraft: "Transcribing…",
+      dictationHint: "Up to 1 minute · added to your message",
     },
     status: {
       idle: 'Ready',
@@ -79,6 +84,7 @@ const UI_COPY = {
       beforeRewrite: 'Before rewrite',
       clipboardPasted: 'Clipboard pasted',
       voiceCommandCaptured: 'Voice instruction captured',
+      draftDictationAdded: "Dictation added",
       draftCopied: 'Draft copied',
       analysisUpdated: 'Analysis updated',
       requestFailed: 'AI request failed.',
@@ -181,6 +187,10 @@ const UI_COPY = {
       submitting: 'Переписываем...',
       mic: 'Говорить',
       stopMic: 'Стоп запись',
+      dictateDraft: "Диктовать",
+      stopDraftDictation: "Стоп",
+      transcribingDraft: "Распознаём…",
+      dictationHint: "До 1 минуты · добавим к тексту",
     },
     status: {
       idle: 'Готово',
@@ -195,6 +205,7 @@ const UI_COPY = {
       beforeRewrite: 'Перед переписыванием',
       clipboardPasted: 'Текст вставлен',
       voiceCommandCaptured: 'Голосовая инструкция распознана',
+      draftDictationAdded: "Диктовка добавлена",
       draftCopied: 'Текст скопирован',
       analysisUpdated: 'Проверка обновлена',
       requestFailed: 'Запрос к ИИ не удался.',
@@ -297,6 +308,10 @@ const UI_COPY = {
       submitting: 'Reescribiendo...',
       mic: 'Mantener para hablar',
       stopMic: 'Detener grabacion',
+      dictateDraft: "Dictar",
+      stopDraftDictation: "Detener",
+      transcribingDraft: "Transcribiendo…",
+      dictationHint: "Hasta 1 minuto · se añade al mensaje",
     },
     status: {
       idle: 'Listo',
@@ -311,6 +326,7 @@ const UI_COPY = {
       beforeRewrite: 'Antes de reescribir',
       clipboardPasted: 'Texto pegado',
       voiceCommandCaptured: 'Instruccion de voz capturada',
+      draftDictationAdded: "Dictado añadido",
       draftCopied: 'Texto copiado',
       analysisUpdated: 'Analisis actualizado',
       requestFailed: 'La solicitud a la IA fallo.',
@@ -413,6 +429,10 @@ const UI_COPY = {
       submitting: 'Wird ueberarbeitet...',
       mic: 'Gedrueckt halten',
       stopMic: 'Aufnahme stoppen',
+      dictateDraft: "Diktieren",
+      stopDraftDictation: "Stopp",
+      transcribingDraft: "Transkribiere…",
+      dictationHint: "Bis zu 1 Minute · wird zum Text hinzugefügt",
     },
     status: {
       idle: 'Bereit',
@@ -427,6 +447,7 @@ const UI_COPY = {
       beforeRewrite: 'Vor der Ueberarbeitung',
       clipboardPasted: 'Text eingefuegt',
       voiceCommandCaptured: 'Sprachanweisung erfasst',
+      draftDictationAdded: "Diktat hinzugefügt",
       draftCopied: 'Text kopiert',
       analysisUpdated: 'Analyse aktualisiert',
       requestFailed: 'Die KI-Anfrage ist fehlgeschlagen.',
@@ -529,6 +550,10 @@ const UI_COPY = {
       submitting: 'Reecriture...',
       mic: 'Maintenir pour parler',
       stopMic: 'Arreter l enregistrement',
+      dictateDraft: "Dicter",
+      stopDraftDictation: "Arrêter",
+      transcribingDraft: "Transcription…",
+      dictationHint: "Jusqu’à 1 minute · ajouté au message",
     },
     status: {
       idle: 'Pret',
@@ -543,6 +568,7 @@ const UI_COPY = {
       beforeRewrite: 'Avant reecriture',
       clipboardPasted: 'Texte colle',
       voiceCommandCaptured: 'Instruction vocale capturee',
+      draftDictationAdded: "Dictée ajoutée",
       draftCopied: 'Texte copie',
       analysisUpdated: 'Analyse mise a jour',
       requestFailed: "La requete a l'IA a echoue.",
@@ -1005,6 +1031,7 @@ function DraftEditor({
       />
       <textarea
         ref={editorRef}
+        id="main-draft"
         className="text-input draft-input editor-textarea"
         value={value}
         onChange={(event) => onChange(normalizeEditorText(event.currentTarget.value))}
@@ -1351,6 +1378,26 @@ export default function Page() {
     setFuture([])
   }
 
+  // Draft dictation appends a new paragraph; the original message is never replaced.
+  function addDictationToDraft(transcript: string) {
+    const nextText = mergeTranscribedText(workingText, transcript)
+    if (nextText === workingText) return
+
+    checkpoint(copy.status.draftDictationAdded)
+    editorSelectionRef.current = { start: nextText.length, end: nextText.length }
+    setWorkingText(nextText)
+    setVersion((current) => current + 1)
+    setLastChangeNote(copy.status.draftDictationAdded)
+    setLastChanges([])
+    setError(null)
+  }
+
+  const draftDictation = useTimedDictation({
+    maxSeconds: MAX_RECORDING_SECONDS,
+    transcribe: transcribeBlob,
+    onTranscript: addDictationToDraft,
+  })
+
   async function analyzeCurrentDraft(
     textToAnalyze: string,
     options?: { commitDraft?: boolean; preserveNote?: boolean },
@@ -1622,7 +1669,7 @@ export default function Page() {
   }, [isRecording, isTranscribing, stopAndTranscribe])
 
   const verdictLabel = analysis ? localizedVerdict(analysis.verdict, copy) : copy.panel.ready
-  const interactionBusy = status !== 'idle' || isRecording || isStarting || isTranscribing
+  const interactionBusy = status !== 'idle' || isRecording || isStarting || isTranscribing || draftDictation.isRecording || draftDictation.isStarting || draftDictation.isTranscribing
 
   // Reveal fresh results only after a requested analysis, not when restoring a saved draft.
   useEffect(() => {
@@ -1739,8 +1786,33 @@ export default function Page() {
             <div className="section-heading"><span className="section-title">{copy.workspace.draft}</span><span className="section-subtitle">{copy.panel.kicker}</span></div>
           </div>
         <div className="editor-shell">
-          <label className="field editor-field">
-            <span>{copy.fields.workingText}</span>
+          <div className="field editor-field">
+            <div className="draft-field-heading">
+              <label htmlFor="main-draft">{copy.fields.workingText}</label>
+              <button
+                type="button"
+                className={`draft-dictation-button ${draftDictation.isRecording ? 'is-recording' : ''}`}
+                onClick={() => void (draftDictation.isRecording ? draftDictation.stop() : draftDictation.start())}
+                disabled={
+                  draftDictation.isTranscribing ||
+                  draftDictation.isStarting ||
+                  (!draftDictation.isRecording && (status !== 'idle' || isRecording || isStarting || isTranscribing || !draftDictation.isSupported))
+                }
+                aria-pressed={draftDictation.isRecording}
+                title={draftDictation.isSupported ? copy.buttons.dictationHint : copy.errors.dictationUnsupported}
+              >
+                {draftDictation.isTranscribing ? <span className="voice-spinner" aria-hidden="true" /> : draftDictation.isRecording ? <StopGlyph /> : <MicIcon />}
+                <span>
+                  {draftDictation.isTranscribing
+                    ? copy.buttons.transcribingDraft
+                    : draftDictation.isRecording
+                      ? `${copy.buttons.stopDraftDictation} · ${Math.floor(draftDictation.remainingSeconds / 60)}:${String(draftDictation.remainingSeconds % 60).padStart(2, '0')}`
+                      : draftDictation.isStarting
+                        ? copy.status.listening
+                        : copy.buttons.dictateDraft}
+                </span>
+              </button>
+            </div>
             <div className="editor-surface">
               <DraftEditor
                 value={workingText}
@@ -1756,7 +1828,8 @@ export default function Page() {
               />
             </div>
             {draftTooLong ? <p className="field-warning">{copy.errors.draftTooLong}</p> : null}
-          </label>
+            <p className="draft-dictation-hint">{copy.buttons.dictationHint}</p>
+          </div>
 
           <div className="history-rail" aria-label={copy.panel.changes}>
             <button
@@ -1893,7 +1966,7 @@ export default function Page() {
         ) : null}
 
           </div>
-          {error || recorderError ? <div className="error-banner" role="alert">{error || recorderError}</div> : null}
+          {error || recorderError || draftDictation.error ? <div className="error-banner" role="alert">{error || recorderError || draftDictation.error}</div> : null}
         </section>
 
         {renderReviewPanel('desktop')}
