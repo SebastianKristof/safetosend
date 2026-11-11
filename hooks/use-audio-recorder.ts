@@ -204,6 +204,7 @@ export function useAudioRecorder() {
       const audioTracks = stream.getAudioTracks()
       if (audioTracks.length === 0) {
         stopTracks()
+        isStartingRef.current = false
         setState((prev) => ({
           ...prev,
           error: 'No audio input device was found.',
@@ -246,18 +247,26 @@ export function useAudioRecorder() {
           setState((previous) => Math.abs(previous.level - level) < 0.015 ? previous : { ...previous, level })
         }
 
-        if (context.audioWorklet && window.AudioWorkletNode) {
-          await context.audioWorklet.addModule('/audio-capture-worklet.js')
-          const node = new AudioWorkletNode(context, 'safetosend-audio-capture')
-          rawWorkletRef.current = node
-          node.port.onmessage = (event: MessageEvent<{ type: string; samples?: Float32Array }>) => {
-            if (event.data.type === 'samples' && event.data.samples?.length) saveSamples(event.data.samples)
-            if (event.data.type === 'flushed') flushResolverRef.current?.()
+        let workletReady = false
+        if (context.audioWorklet && typeof AudioWorkletNode === 'function') {
+          try {
+            await context.audioWorklet.addModule('/audio-capture-worklet.js')
+            if (captureGenerationRef.current !== captureGeneration) return
+            const node = new AudioWorkletNode(context, 'safetosend-audio-capture')
+            rawWorkletRef.current = node
+            node.port.onmessage = (event: MessageEvent<{ type: string; samples?: Float32Array }>) => {
+              if (event.data.type === 'samples' && event.data.samples?.length) saveSamples(event.data.samples)
+              if (event.data.type === 'flushed') flushResolverRef.current?.()
+            }
+            source.connect(node)
+            node.connect(silentSink)
+            workletReady = true
+          } catch {
+            // Worklet modules can be blocked by restrictive privacy settings.
           }
-          source.connect(node)
-          node.connect(silentSink)
-        } else {
-          // Legacy compatibility only; AudioWorklet is preferred.
+        }
+        if (!workletReady) {
+          // Last-resort compatibility for older browsers without AudioWorklet.
           const processor = context.createScriptProcessor(4096, 1, 1)
           rawScriptRef.current = processor
           processor.onaudioprocess = (event) => {
@@ -277,7 +286,11 @@ export function useAudioRecorder() {
         return
       }
 
-      startLevelTracking(stream)
+      try {
+        startLevelTracking(stream)
+      } catch {
+        // Audio level visualization is optional; recording still works.
+      }
       recorderRef.current = recorder
 
       recorder.ondataavailable = (event) => {
