@@ -1624,7 +1624,7 @@ export default function Page() {
   const verdictLabel = analysis ? localizedVerdict(analysis.verdict, copy) : copy.panel.ready
   const interactionBusy = status !== 'idle' || isRecording || isStarting || isTranscribing
 
-  // Reveal fresh results only after a user-requested check/rewrite, never on page hydration.
+  // Reveal fresh results only after a requested analysis, not when restoring a saved draft.
   useEffect(() => {
     if (status !== 'idle' || !analysis || !shouldRevealReviewRef.current) return
     shouldRevealReviewRef.current = false
@@ -1633,10 +1633,10 @@ export default function Page() {
     const panel = mobileReviewRef.current
     if (!panel) return
     const bounds = panel.getBoundingClientRect()
-    // Avoid disruptive scrolling when the review is already sufficiently visible.
+    // Keep the user's scroll position when the result is already in view.
     if (bounds.top >= 0 && bounds.top < window.innerHeight - 140) return
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    panel.scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' })
+    panel.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' })
   }, [analysis, status])
 
   const renderReviewPanel = (placement: 'mobile' | 'desktop') => (
@@ -1893,11 +1893,10 @@ export default function Page() {
         ) : null}
 
           </div>
-          {error || recorderError ? <div className="error-banner" role="alert">{        {renderReviewPanel('desktop')}>
-        ) : null}
+          {error || recorderError ? <div className="error-banner" role="alert">{error || recorderError}</div> : null}
+        </section>
 
-          </section>
-        </aside>
+        {renderReviewPanel('desktop')}
       </div>
 
       <footer className="site-footer"><span>{copy.hero.eyebrow}</span><span>{copy.hero.subtitle}</span></footer>
