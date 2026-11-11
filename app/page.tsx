@@ -22,6 +22,7 @@ import { buildAnalysisContextPayload, getLocalizedMeaning } from '@/lib/analysis
 import { MAX_DRAFT_CHARS } from '@/lib/draft-limits'
 import { useAudioRecorder } from '@/hooks/use-audio-recorder'
 import { useTimedDictation } from '@/hooks/use-timed-dictation'
+import { audioFileExtension } from '@/lib/audio-format'
 
 const STORAGE_KEY = 'safetosend.app.state.v4'
 
@@ -756,7 +757,7 @@ function mergeTranscribedText(existing: string, transcript: string) {
 
 async function transcribeBlob(blob: Blob): Promise<string> {
   const form = new FormData()
-  const ext = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm'
+  const ext = audioFileExtension(blob.type)
   form.append('audio', new File([blob], `voice-input.${ext}`, { type: blob.type }))
 
   const endpoint = new URL('/api/transcribe', window.location.origin).toString()
