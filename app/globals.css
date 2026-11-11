@@ -279,6 +279,9 @@ h1 {
 
 /* Assessment: deliberately separate from the draft */
 .insight-column { min-width: 0; display: flex; }
+.desktop-review { position: sticky; top: 22px; align-self: start; }
+.mobile-review { display: none; }
+
 .insights-panel {
   width: 100%; min-height: 100%;
   display: flex; flex-direction: column; gap: 25px;
@@ -291,13 +294,6 @@ h1 {
 .insights-panel .section-title { color: #f7f7f0; }
 .insights-panel .section-subtitle { color: var(--dark-muted); }
 .analysis-card { display: flex; flex-direction: column; gap: 21px; min-width: 0; }
-.empty-readout {
-  display: grid; place-items: center; margin: 0;
-  min-height: 150px; border-radius: 16px;
-  border: 1px dashed rgba(212, 231, 205, .22);
-  color: var(--lime); background: rgba(255, 255, 255, .035);
-}
-.empty-readout svg { width: 91px; height: 91px; opacity: .77; }
 
 .analysis-topline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .verdict-pill {
@@ -355,6 +351,10 @@ h1 {
   h1 { font-size: clamp(40px, 9vw, 60px); }
   .hero-art { display: none; }
   .workspace-grid { grid-template-columns: 1fr; gap: 13px; }
+  .desktop-review { display: none; }
+  .mobile-review { display: flex; scroll-margin-top: 16px; }
+  .mobile-review .insights-panel { min-height: 0; border-radius: 16px; }
+
   .composer-card, .insights-panel { padding: 22px 20px; border-radius: 18px; }
   .composer-card { gap: 20px; }
   .insights-panel { min-height: 220px; gap: 22px; }
