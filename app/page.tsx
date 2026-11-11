@@ -143,7 +143,7 @@ const UI_COPY = {
       clipboardEmpty: 'Clipboard is empty.',
       copyFailed: 'Copy failed.',
       pasteFailed: 'Paste failed.',
-      dictationUnsupported: 'Voice capture is not available in this browser.',
+      dictationUnsupported: 'Microphone unavailable here. Open this site in a normal HTTPS tab and check microphone permissions.',
       dictationFailed: 'Voice capture failed',
       voiceTooShort: 'Hold a little longer to record.',
       couldNotStart: 'Could not start recording.',
@@ -265,7 +265,7 @@ const UI_COPY = {
       clipboardEmpty: 'Буфер обмена пуст.',
       copyFailed: 'Не удалось скопировать текст.',
       pasteFailed: 'Не удалось вставить текст.',
-      dictationUnsupported: 'Голосовая запись недоступна в этом браузере.',
+      dictationUnsupported: 'Микрофон недоступен. Откройте сайт напрямую через HTTPS и проверьте разрешение на микрофон.',
       dictationFailed: 'Не удалось распознать голос',
       voiceTooShort: 'Подержите кнопку чуть дольше, чтобы записать.',
       couldNotStart: 'Не удалось начать запись.',
@@ -387,7 +387,7 @@ const UI_COPY = {
       clipboardEmpty: 'El portapapeles esta vacio.',
       copyFailed: 'No se pudo copiar el texto.',
       pasteFailed: 'No se pudo pegar el texto.',
-      dictationUnsupported: 'La captura de voz no esta disponible en este navegador.',
+      dictationUnsupported: 'El micrófono no está disponible. Abre el sitio directamente con HTTPS y revisa los permisos.',
       dictationFailed: 'La captura de voz fallo',
       voiceTooShort: 'Mantén pulsado un poco más para grabar.',
       couldNotStart: 'No se pudo iniciar la grabacion.',
@@ -509,7 +509,7 @@ const UI_COPY = {
       clipboardEmpty: 'Die Zwischenablage ist leer.',
       copyFailed: 'Der Text konnte nicht kopiert werden.',
       pasteFailed: 'Der Text konnte nicht eingefuegt werden.',
-      dictationUnsupported: 'Sprachaufnahme ist in diesem Browser nicht verfuegbar.',
+      dictationUnsupported: 'Mikrofon nicht verfügbar. Öffne die Seite direkt über HTTPS und prüfe die Mikrofonberechtigung.',
       dictationFailed: 'Sprachaufnahme fehlgeschlagen',
       voiceTooShort: 'Zum Aufnehmen etwas laenger gedrueckt halten.',
       couldNotStart: 'Aufnahme konnte nicht gestartet werden.',
@@ -631,7 +631,7 @@ const UI_COPY = {
       clipboardEmpty: 'Le presse-papiers est vide.',
       copyFailed: 'Impossible de copier le texte.',
       pasteFailed: 'Impossible de coller le texte.',
-      dictationUnsupported: "La capture vocale n'est pas disponible dans ce navigateur.",
+      dictationUnsupported: "Microphone indisponible. Ouvrez le site directement en HTTPS et vérifiez les autorisations.",
       dictationFailed: 'La capture vocale a echoue',
       voiceTooShort: 'Maintiens un peu plus longtemps pour enregistrer.',
       couldNotStart: "Impossible de demarrer l enregistrement.",
@@ -1835,7 +1835,7 @@ export default function Page() {
               />
             </div>
             <div className="draft-field-meta">
-              <p className="draft-dictation-hint">{copy.buttons.dictationHint}</p>
+              <p className={`draft-dictation-hint ${!draftDictation.isSupported ? 'mic-unavailable' : ''}`}>{draftDictation.isSupported ? copy.buttons.dictationHint : copy.errors.dictationUnsupported}</p>
               <span
                 className={`draft-char-counter ${draftTooLong ? 'over-limit' : ''}`}
                 aria-label={`${copy.fields.characterCount}: ${workingText.trim().length} / ${MAX_DRAFT_CHARS}`}
