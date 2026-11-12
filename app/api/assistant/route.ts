@@ -1,7 +1,8 @@
 import { generateText, Output } from 'ai'
 import { NextResponse } from 'next/server'
 import {
-  analysisResponseSchema,
+  analysisModelResponseSchema,
+  meaningResponseSchema,
   assistantRequestSchema,
   editResponseSchema,
   type AnalysisResponse,
@@ -10,6 +11,7 @@ import { getInferenceConfig, resolveInferenceModel } from '@/lib/inference-confi
 import {
   buildAnalysisPrompt,
   buildEditPrompt,
+  buildMeaningPrompt,
   getPromptBundle,
 } from '@/lib/assistant-prompts'
 import { MAX_DRAFT_CHARS } from '@/lib/draft-limits'
@@ -115,19 +117,38 @@ export async function POST(request: Request) {
       const slot = inferenceConfig.textAnalysis
       const model = resolveInferenceModel(slot)
 
-      const result = await generateText({
-        model,
-        system: prompts.analyzeSystem,
-        prompt: buildAnalysisPrompt(payload, prompts.analyzeUser, prompts.audienceGuidance[payload.audience]),
-        output: Output.object({
-          schema: analysisResponseSchema,
+      // Generate the analysis and translation separately. The translator receives
+      // ONLY the current English draft, never the suggested rewrite or analysis.
+      // This prevents the verification panel from becoming a recommendation.
+      const [analysis, translation] = await Promise.all([
+        generateText({
+          model,
+          system: prompts.analyzeSystem,
+          prompt: buildAnalysisPrompt(payload, prompts.analyzeUser, prompts.audienceGuidance[payload.audience]),
+          output: Output.object({ schema: analysisModelResponseSchema }),
+          temperature: 0.2,
+          maxOutputTokens: 450,
+          providerOptions: buildProviderOptions(slot.provider),
         }),
-        temperature: 0.2,
-        maxOutputTokens: 450,
-        providerOptions: buildProviderOptions(slot.provider),
-      })
+        locale === 'en'
+          ? Promise.resolve(null)
+          : generateText({
+              model,
+              system: prompts.meaningSystem,
+              prompt: buildMeaningPrompt(payload, prompts.meaningUser),
+              output: Output.object({ schema: meaningResponseSchema }),
+              temperature: 0,
+              maxOutputTokens: 900,
+              providerOptions: buildProviderOptions(slot.provider),
+            }),
+      ])
 
-      return NextResponse.json(enforceAnalysisInvariants(result.output, payload.text))
+      const result: AnalysisResponse = {
+        ...analysis.output,
+        localizedMeaning: translation?.output.localizedMeaning || payload.text.trim(),
+      }
+
+      return NextResponse.json(enforceAnalysisInvariants(result, payload.text))
     }
 
     if (payload.text.trim().length < 3) {
