@@ -18,7 +18,7 @@ import type {
   Verdict,
 } from '@/lib/assistant-contracts'
 import type { DraftSnapshot } from '@/lib/assistant-client'
-import { buildAnalysisContextPayload, getLocalizedMeaning } from '@/lib/analysis-state'
+import { buildAnalysisContextPayload, getLocalizedMeaning, getVisibleAnalysis } from '@/lib/analysis-state'
 import { MAX_DRAFT_CHARS } from '@/lib/draft-limits'
 import { useAudioRecorder } from '@/hooks/use-audio-recorder'
 import { useTimedDictation } from '@/hooks/use-timed-dictation'
@@ -1196,6 +1196,11 @@ export default function Page() {
   const editorSelectionRef = useRef<EditorSelection | null>(null)
   const mobileReviewRef = useRef<HTMLElement | null>(null)
   const shouldRevealReviewRef = useRef(false)
+  const analysisRequestIdRef = useRef(0)
+  const currentLocaleRef = useRef(locale)
+  const currentDraftRef = useRef(workingText)
+  currentLocaleRef.current = locale
+  currentDraftRef.current = workingText
   const recorder = useAudioRecorder()
   const {
     isSupported: voiceSupported,
@@ -1307,36 +1312,31 @@ export default function Page() {
     return () => window.clearTimeout(timer)
   }, [copied])
 
-  const verdictTone = useMemo(() => {
-    if (!analysis) {
-      return 'neutral'
-    }
-
-    return verdictStyle(analysis.verdict)
-  }, [analysis])
   const draftIsStale = Boolean(analysis) && workingText.trim() !== lastAnalyzedDraftRef.current.trim()
+  const visibleAnalysis = getVisibleAnalysis({ analysis, analysisLocale, draftIsStale, locale })
+  const verdictTone = visibleAnalysis ? verdictStyle(visibleAnalysis.verdict) : 'neutral'
   const draftTooLong = workingText.trim().length > MAX_DRAFT_CHARS
   const analysisHighlights = useMemo<HighlightSpan[]>(() => {
-    if (draftIsStale || !analysis?.highlights?.length) {
+    if (!visibleAnalysis?.highlights?.length) {
       return []
     }
 
-    return analysis.highlights.map((highlight) => ({
+    return visibleAnalysis.highlights.map((highlight) => ({
       text: highlight.text,
       tone: highlight.severity,
       label: highlight.reason,
     }))
-  }, [analysis, draftIsStale])
+  }, [visibleAnalysis])
   const analysisHighlightReasons = useMemo(() => {
-    if (draftIsStale || !analysis?.highlights?.length) {
+    if (!visibleAnalysis?.highlights?.length) {
       return []
     }
 
-    return analysis.highlights.map((highlight) => ({
+    return visibleAnalysis.highlights.map((highlight) => ({
       tone: highlight.severity,
       reason: highlight.reason,
     }))
-  }, [analysis, draftIsStale])
+  }, [visibleAnalysis])
   const rewriteHighlights = useMemo<HighlightSpan[]>(() => {
     return lastChanges
       .filter((change) => change.after.trim())
@@ -1347,15 +1347,12 @@ export default function Page() {
       }))
   }, [lastChanges])
   const localizedMeaning = useMemo(() => {
-    return getLocalizedMeaning({ analysis, analysisLocale, draftIsStale, locale })
-  }, [analysis, analysisLocale, draftIsStale, locale])
-  const analysisContextPayload = useMemo(() => {
-    if (!analysis || draftIsStale || analysisLocale !== locale) {
-      return undefined
-    }
-
-    return buildAnalysisContextPayload(analysis)
-  }, [analysis, analysisLocale, draftIsStale, locale])
+    return getLocalizedMeaning({ analysis: visibleAnalysis, analysisLocale, draftIsStale, locale })
+  }, [visibleAnalysis, analysisLocale, draftIsStale, locale])
+  const analysisContextPayload = useMemo(
+    () => buildAnalysisContextPayload(visibleAnalysis),
+    [visibleAnalysis],
+  )
   const statusText = isTranscribing
     ? copy.status.transcribing
     : isRecording || isStarting
