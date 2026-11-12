@@ -25,7 +25,6 @@ Return JSON with this shape:
     }
   ],
   "suggestedText": "send-ready English rewrite",
-  "localizedMeaning": "short literal-leaning meaning gloss in the interface language",
   "inferredGoal": "short phrase in the interface language",
   "recommendedTone": "short phrase in the interface language"
 }
@@ -38,14 +37,7 @@ Rules:
 - prefer the smallest effective revision
 - preserve the user's intent
 - keep suggestedText in English
-- keep localizedMeaning in the interface language and subordinate to the English draft
-- localizedMeaning is for meaning verification, not prose quality
-- prefer literal translation for the core ask, even if phrasing is less natural
-- keep semantics aligned: same speech act, same core action, same target outcome
-- keep modality/force aligned; do not weaken or strengthen commitment level
-- preserve scope details (actor, object, conditions, timeframe, decision stage) when present
-- do not turn an explicit action ask into a meta ask (review/comment/discuss/consider) unless the draft itself does
-- before finalizing localizedMeaning, do a quick internal back-translation check for actor/action/object/modality/stage equivalence
+- do not translate the message; a separate translation model handles meaning verification
 - if the draft is already good, keep changes minimal
 - if highlights are present, suggestedText must address those highlighted spans
 - if the message is too emotionally risky, verdict should be Do not send yet
