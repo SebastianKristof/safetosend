@@ -38,6 +38,11 @@ export const analysisResponseSchema = z
   })
   .strict()
 
+// The analysis model should not generate the translation; a separate, draft-only
+// model call produces localizedMeaning so it cannot paraphrase suggestedText.
+export const analysisModelResponseSchema = analysisResponseSchema.omit({ localizedMeaning: true })
+export const meaningResponseSchema = z.object({ localizedMeaning: z.string().min(1) }).strict()
+
 export const editResponseSchema = z
   .object({
     editType: editTypeSchema,
