@@ -26,6 +26,18 @@ export function buildAnalysisContextPayload(analysis: AnalysisResponse | null): 
   }
 }
 
+// A cached LLM response must never be displayed under a different UI language
+// (or for text that has since been edited).
+export function getVisibleAnalysis(params: {
+  analysis: AnalysisResponse | null
+  analysisLocale: Locale | null | undefined
+  draftIsStale: boolean
+  locale: Locale
+}): AnalysisResponse | null {
+  if (params.draftIsStale || params.analysisLocale !== params.locale) return null
+  return params.analysis
+}
+
 export function getLocalizedMeaning(params: {
   analysis: Pick<AnalysisResponse, 'localizedMeaning'> | null
   analysisLocale: Locale | null | undefined
