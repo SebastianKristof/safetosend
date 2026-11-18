@@ -47,7 +47,8 @@ edit('grammar_noop','Thanks! See you Saturday.','Correct grammar only.','unchang
 edit('grammar_keep_voice','Hey Sam, she have confirmed the meeting. Awesome, see you Friday!','Correct grammar only.','grammar_edit')
 edit('exact_replacement','Hi Sam, Friday works for me. See you then!',"Replace 'Friday' with 'Saturday'.",'exact')
 edit('formal_transform',original.replace("if you're still around","if you're still in Brooklyn"),'Make this formal.','formal_edit')
-edit('selected_formality_default_rewrite',"I'm booked Friday but can meet Saturday if you're still in Brooklyn!",'Apply the active style preferences, including any requested change of formality. Correct actual language errors and meaningful communication risks. With formality as_written, preserve the existing register. With keep-tone enabled, preserve personality, warmth, and directness while applying the requested formality. Return unchanged only if no correction or requested style adjustment is needed.','formal_edit',style={**STYLE,'formality':'formal'})
+edit('selected_formality_default_rewrite',"I'm booked Friday but can meet Saturday if you're still in Brooklyn!",'Make this formal. Preserve meaning, conditions, and the strength of commitments.','formal_edit',style={**STYLE,'formality':'formal'})
+edit('selected_formality_default_original',original,'Make this formal. Preserve meaning, conditions, and the strength of commitments.','formal_original_edit',style={**STYLE,'formality':'formal'})
 edit('retain_wrongly_highlighted','Thanks! See you Saturday.','Correct grammar only.','unchanged')
 cases[-1]['body']['analysisContext']={'verdict':'Risky - revise','reason':'Too informal.','highlights':[{'text':'Thanks!','severity':'yellow','reason':'Too informal for a client.'}]}
 for name,body in [
@@ -96,9 +97,9 @@ def run(case):
    if expect=='unchanged' and (d.get('updatedText')!=source or d.get('changes')!=[]):errors.append('No-op invented edits')
    if expect=='grammar_edit' and d.get('updatedText')!='Hey Sam, she has confirmed the meeting. Awesome, see you Friday!':errors.append('Grammar edit changed voice or missed error')
    if expect=='exact' and d.get('updatedText')!='Hi Sam, Saturday works for me. See you then!':errors.append('Exact replacement changed unrelated text')
-   if expect=='formal_edit':
+   if expect in ['formal_edit','formal_original_edit']:
     if d.get('updatedText')==source:errors.append('Formal edit unchanged')
-    if 'still available' in d.get('updatedText',''):errors.append('Location condition changed to availability')
+    if expect=='formal_edit' and 'still available' in d.get('updatedText',''):errors.append('Location condition changed to availability')
  return dict(name=case['name'],pass_=not errors,status=status,seconds=round(time.monotonic()-start,2),errors=errors,response=d,request=case['body'])
 cases=[case for case in cases if args.filter in case['name']]
 results=[]

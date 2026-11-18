@@ -277,7 +277,7 @@ export function useComposer() {
   }
   async function runRewrite(instructionOverride?: string) {
     const source = workingText.trim()
-    const instruction = instructionOverride?.trim() || voiceCommand.trim() || defaultRewriteInstruction(locale)
+    const instruction = instructionOverride?.trim() || voiceCommand.trim() || defaultRewriteInstruction(locale, style)
     if (source.length < 3) {
       setError(copy.errors.addDraft)
       return

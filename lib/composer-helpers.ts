@@ -86,8 +86,14 @@ function normalizeAudience(value: string | null | undefined): Audience {
   return value && AUDIENCE_VALUES.has(value as Audience) ? (value as Audience) : 'general'
 }
 
-function defaultRewriteInstruction(_locale: Locale) {
-  return 'Apply the active style preferences, including any requested change of formality. Correct actual language errors and meaningful communication risks. With formality as_written, preserve the existing register. With keep-tone enabled, preserve personality, warmth, and directness while applying the requested formality. Return unchanged only if no correction or requested style adjustment is needed.'
+function defaultRewriteInstruction(_locale: Locale, style: StylePreferences) {
+  const instructions = {
+    as_written: 'Correct genuine language errors and meaningful communication risks. Preserve the existing register.',
+    casual: 'Make this casual.',
+    professional_conversational: 'Make this professional and conversational.',
+    formal: 'Make this formal.',
+  }
+  return instructions[style.formality] + ' Preserve meaning, conditions, and the strength of commitments.'
 }
 
 const MAX_RECORDING_SECONDS = 45
