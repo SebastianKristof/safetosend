@@ -87,7 +87,7 @@ function normalizeAudience(value: string | null | undefined): Audience {
 }
 
 function defaultRewriteInstruction(_locale: Locale) {
-  return 'Resolve genuine communication risks and language errors using the active style settings. Preserve the intended register and voice. If no useful edit is needed, return the original unchanged.'
+  return 'Apply the active style preferences, including any requested change of formality. Correct actual language errors and meaningful communication risks. With formality as_written, preserve the existing register. With keep-tone enabled, preserve personality, warmth, and directness while applying the requested formality. Return unchanged only if no correction or requested style adjustment is needed.'
 }
 
 const MAX_RECORDING_SECONDS = 45
