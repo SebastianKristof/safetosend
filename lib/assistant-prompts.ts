@@ -20,6 +20,7 @@ const languageInstruction = {
 
 type PromptBundle = {
   analyzeSystem: string
+  editSystem: string
   analyzeUser: string
   editUser: string
   audienceGuidance: Record<Audience, string>
@@ -34,7 +35,7 @@ async function readPrompt(relativePath: string) {
 
 export async function getPromptBundle() {
   if (process.env.NODE_ENV === 'development') {
-    const [analyzeSystem, analyzeUser, editUser, boss, client, colleague, partner, general] = await Promise.all([
+    const [analyzeSystem, analyzeUser, editUser, boss, client, colleague, partner, general, editSystem] = await Promise.all([
       readPrompt('prompts/analyze-system.md'),
       readPrompt('prompts/analyze-user.md'),
       readPrompt('prompts/edit-user.md'),
@@ -43,10 +44,12 @@ export async function getPromptBundle() {
       readPrompt('prompts/audiences/colleague.md'),
       readPrompt('prompts/audiences/partner.md'),
       readPrompt('prompts/audiences/general.md'),
+      readPrompt('prompts/edit-system.md'),
     ])
 
     return {
       analyzeSystem,
+      editSystem,
       analyzeUser,
       editUser,
       audienceGuidance: {
@@ -69,10 +72,12 @@ export async function getPromptBundle() {
       readPrompt('prompts/audiences/colleague.md'),
       readPrompt('prompts/audiences/partner.md'),
       readPrompt('prompts/audiences/general.md'),
+      readPrompt('prompts/edit-system.md'),
     ]).then(
-      ([analyzeSystem, analyzeUser, editUser, boss, client, colleague, partner, general]) =>
+      ([analyzeSystem, analyzeUser, editUser, boss, client, colleague, partner, general, editSystem]) =>
         ({
           analyzeSystem,
+          editSystem,
           analyzeUser,
           editUser,
           audienceGuidance: {

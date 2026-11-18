@@ -124,6 +124,7 @@ export async function POST(request: Request) {
 
     const result = await generateText({
       model,
+      system: prompts.editSystem,
       prompt: buildEditPrompt(payload, prompts.editUser, prompts.audienceGuidance[payload.audience]),
       output: Output.object({
         schema: editResponseSchema,

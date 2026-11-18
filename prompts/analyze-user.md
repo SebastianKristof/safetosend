@@ -31,7 +31,8 @@ Rules:
 - Explanations must use the interface language. Message text and replacements stay English.
 - Return 0–5 risk highlights and 0–3 language fixes. Do not invent issues.
 - Any risk highlight requires a revision verdict; language fixes alone do not.
+- Clear meaning with a minor language error means Safe to send, no risk highlights, and a separate language fix. Do not cite generic loss of professionalism as a reason to classify grammar as risk.
 - Explain the main concern in reason. If the draft works, say so briefly and preserve it.
-- Do not offer alternative wording solely to demonstrate improvement.
+- Do not offer alternative wording solely to demonstrate improvement. Requested formality changes may appear in suggestedText, but valid informal language must not be listed as a grammar error or automatically treated as risk.
 - localizedMeaning is for meaning verification, not prose quality. Prefer literal translation for the core ask.
 - Do not turn an explicit action ask into a meta ask. Perform an internal back-translation check for semantic equivalence.
