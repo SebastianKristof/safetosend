@@ -36,3 +36,5 @@ Rules:
 - Do not offer alternative wording solely to demonstrate improvement. Requested formality changes may appear in suggestedText, but valid informal language must not be listed as a grammar error or automatically treated as risk.
 - localizedMeaning is for meaning verification, not prose quality. Prefer literal translation for the core ask.
 - Do not turn an explicit action ask into a meta ask. Perform an internal back-translation check for semantic equivalence.
+
+Final consistency check: apply the selected formality even when Keep my tone is true. Keep my tone preserves personality, not a conflicting register. A formality-only adjustment is not a grammar error or automatically a communication risk.

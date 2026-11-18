@@ -159,7 +159,7 @@ export default function Page() {
           </div>
         </div>
 
-          {lastChangeNote === styleCopy.cleared || lastChangeNote === styleCopy.noChanges ? <p className="composer-note" role="status">{lastChangeNote}</p> : null}
+          {lastChangeNote === styleCopy.cleared ? <p className="composer-note" role="status">{lastChangeNote}</p> : null}
           <div className="composer-actions">
         <div className="audience-row">
           <AudienceDropdown

@@ -23,6 +23,8 @@ def edit(name,text,instruction,expect,style=None):
  cases.append({'name':name,'body':dict(mode='edit',text=text,audience='client',locale='en',instruction=instruction,style=style or STYLE),'expect':expect})
 for n in range(3):analysis('original_'+str(n+1),original)
 analysis('client_rapport',original,audience='client',style={**STYLE,'relationshipContext':'Recruiter I already know; friendly exchange.'})
+analysis('partner_rapport',original,audience='partner')
+analysis('formal_original',original,'formal_original',style={**STYLE,'formality':'formal'})
 analysis('grammar_only','She have confirmed the meeting.','grammar')
 analysis('grammar_typo','Please see teh attached report.','language_only')
 analysis('grammar_past','Yesterday, I send the report.','language_only')
@@ -34,7 +36,7 @@ analysis('clear_direct_ask','Please send the report by 3 PM today.',audience='co
 analysis('british_usage',"Cheers, I'll give you a ring after I've organised the notes.")
 analysis('firm_deadline','We need your approval by Friday. Without it, we cannot start on Monday.',audience='client')
 analysis('personal_attack',"You clearly have no idea what you're doing. Fix your mess today.",'risk',audience='colleague')
-analysis('explicit_formal',original,'formal',style={**STYLE,'formality':'formal'})
+analysis('explicit_formal',original.replace("if you're still around","if you're still in Brooklyn"),'formal',style={**STYLE,'formality':'formal'})
 analysis('tone_off_no_issues','Thanks! See you Saturday.',style={**STYLE,'preserveTone':False})
 for locale in ['ru','es','de','fr']:
  analysis('localized_'+locale,'Please approve the revised budget by Friday; we cannot start until you approve it.','localized',audience='boss',locale=locale)
@@ -44,7 +46,7 @@ analysis('long_input',long+'Please confirm whether Friday works for our review.'
 edit('grammar_noop','Thanks! See you Saturday.','Correct grammar only.','unchanged')
 edit('grammar_keep_voice','Hey Sam, she have confirmed the meeting. Awesome, see you Friday!','Correct grammar only.','grammar_edit')
 edit('exact_replacement','Hi Sam, Friday works for me. See you then!',"Replace 'Friday' with 'Saturday'.",'exact')
-edit('formal_transform',original,'Make this formal.','formal_edit')
+edit('formal_transform',original.replace("if you're still around","if you're still in Brooklyn"),'Make this formal.','formal_edit')
 edit('retain_wrongly_highlighted','Thanks! See you Saturday.','Correct grammar only.','unchanged')
 cases[-1]['body']['analysisContext']={'verdict':'Risky - revise','reason':'Too informal.','highlights':[{'text':'Thanks!','severity':'yellow','reason':'Too informal for a client.'}]}
 for name,body in [
@@ -83,10 +85,11 @@ def run(case):
     if expect=='grammar' and d.get('suggestedText')!='She has confirmed the meeting.':errors.append('Incorrect grammar fix')
     if not d.get('languageFixes'):errors.append('No grammar finding')
    if expect=='risk' and (d.get('verdict')=='Safe to send' or not d.get('highlights')):errors.append('Missed personal attack')
-   if expect=='formal':
+   if expect in ['formal','formal_original']:
     if d.get('suggestedText')==source:errors.append('Ignored formal target')
+    if 'informal' in d.get('recommendedTone','').lower():errors.append('Tone conflicts with formal target')
     if d.get('languageFixes') or d.get('highlights'):errors.append('Style preference treated as error or risk')
-    if 'still available' in d.get('suggestedText',''):errors.append('Location condition changed to availability')
+    if expect=='formal' and 'still available' in d.get('suggestedText',''):errors.append('Location condition changed to availability')
    if expect=='localized' and d.get('localizedMeaning')==source:errors.append('Untranslated gloss')
   else:
    if expect=='unchanged' and (d.get('updatedText')!=source or d.get('changes')!=[]):errors.append('No-op invented edits')
