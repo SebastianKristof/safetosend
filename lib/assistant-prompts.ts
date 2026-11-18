@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import type { AnalysisResponse, AssistantRequest, Audience } from './assistant-contracts'
+import type { AnalysisResponse, AssistantRequest, Audience } from './assistant-contracts.ts'
 
 const languageName = {
   en: 'English',
@@ -105,6 +105,10 @@ export function buildAnalysisPrompt(
     language_name: languageName[request.locale],
     locale: request.locale,
     text: request.text.trim(),
+    formality: request.style.formality,
+    preserve_tone: String(request.style.preserveTone),
+    english_variant: request.style.englishVariant,
+    relationship_context: JSON.stringify(request.style.relationshipContext || 'Not supplied'),
   })
 }
 
@@ -124,6 +128,10 @@ export function buildEditPrompt(
     locale: request.locale,
     context,
     text: request.text.trim(),
+    formality: request.style.formality,
+    preserve_tone: String(request.style.preserveTone),
+    english_variant: request.style.englishVariant,
+    relationship_context: JSON.stringify(request.style.relationshipContext || 'Not supplied'),
     instruction,
   })
 }
