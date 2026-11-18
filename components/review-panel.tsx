@@ -45,7 +45,7 @@ export function ReviewPanel({ model, placement }: { model: ReturnType<typeof use
             </li>)}</ul>
           </section>
         ) : null}
-        {analysis && !draftIsStale && analysis.suggestedText === workingText.trim() ? <p className="no-changes">{styleCopy.noChanges}</p> : null}
+        {analysis && !draftIsStale && analysis.verdict === 'Safe to send' && !analysis.highlights.length && !analysis.languageFixes?.length && analysis.suggestedText === workingText.trim() ? <p className="no-changes">{styleCopy.noChanges}</p> : null}
         {localizedMeaning ? (
           <section className="verification-card" aria-labelledby={`verification-meaning-title-${placement}`}>
             <div className="verification-card-head">

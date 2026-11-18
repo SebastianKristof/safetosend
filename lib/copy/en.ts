@@ -78,7 +78,7 @@ const copy = {
     },
     audiences: {
       boss: { label: 'Boss', helper: 'Short, clear, low-friction' },
-      client: { label: 'Client', helper: 'Polished, careful, confident' },
+      client: { label: 'Client', helper: 'Clear expectations and trust' },
       colleague: { label: 'Colleague', helper: 'Direct and collaborative' },
       partner: { label: 'Partner', helper: 'Warm and non-defensive' },
       general: { label: 'General', helper: 'Neutral and adaptive' },

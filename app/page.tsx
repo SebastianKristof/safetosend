@@ -8,7 +8,7 @@ import { RewriteIcon, UndoIcon, RedoIcon, CopyIcon, PasteIcon, CheckIcon, MicIco
 
 export default function Page() {
   const model = useComposer()
-  const { workingText, setWorkingText, audience, setAudience, voiceCommand, setVoiceCommand, style, setStyle, locale, setLocale, analysis, past, future, status, error, setError, copied, isTranscribing, voiceSupported, isRecording, isStarting, level, recorderError, draftDictation, copy, styleCopy, audienceOptions, localeOptions, editorSelectionRef, mobileReviewRef, draftIsStale, draftTooLong, analysisHighlights, analysisHighlightReasons, rewriteHighlights, localizedMeaning, verdictTone, verdictLabel, interactionBusy, runCheck, runRewrite, undoLastChange, redoLastChange, copyWorkingText, pasteIntoDraft, clearDraft, startVoiceCapture, requestVoiceStop, cancelVoiceCapture, setLastChanges, lastChanges, lastChangeNote } = model
+  const { workingText, setWorkingText, audience, setAudience, voiceCommand, setVoiceCommand, style, setStyle, locale, setLocale, analysis, past, future, status, error, setError, copied, isTranscribing, voiceSupported, isRecording, isStarting, level, recorderError, draftDictation, copy, styleCopy, audienceOptions, localeOptions, editorSelectionRef, draftTooLong, analysisHighlights, rewriteHighlights, interactionBusy, runCheck, runRewrite, undoLastChange, redoLastChange, copyWorkingText, pasteIntoDraft, clearDraft, startVoiceCapture, requestVoiceStop, cancelVoiceCapture, setLastChanges, lastChanges, lastChangeNote } = model
 
   return (
     <main className="page-shell">

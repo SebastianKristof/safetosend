@@ -5,7 +5,6 @@ import {
   analysisResponseSchema,
   assistantRequestSchema,
   editResponseSchema,
-  type AnalysisResponse,
 } from '@/lib/assistant-contracts'
 import { getInferenceConfig, resolveInferenceModel } from '@/lib/inference-config'
 import {

@@ -53,6 +53,8 @@ export function useComposer() {
   const copy = useMemo(() => getCopy(locale), [locale])
   const styleCopy = getStyleCopy(locale)
   const inputKey = analysisInputKey(workingText, audience, locale, style)
+  const latestVoiceCommandRef = useRef(voiceCommand)
+  latestVoiceCommandRef.current = voiceCommand
   const latestInputRef = useRef(inputKey)
   latestInputRef.current = inputKey
   const audienceOptions = useMemo(() => buildAudienceOptions(copy), [copy])
@@ -250,7 +252,7 @@ export function useComposer() {
       setAnalysis(result)
       setAnalysisKey(expectedKey)
       setAnalysisLocale(locale)
-      if (!preserveNote) {
+      if (!preserveNote || result.verdict !== 'Safe to send' || result.highlights.length || result.languageFixes.length) {
         setLastChangeNote(copy.status.analysisUpdated)
       }
     } catch (err) {
@@ -285,6 +287,7 @@ export function useComposer() {
     }
     const requestId = ++requestIdRef.current
     const expectedKey = latestInputRef.current
+    const expectedVoiceCommand = latestVoiceCommandRef.current
     shouldRevealReviewRef.current = true
     setStatus('rewriting')
     setError(null)
@@ -299,7 +302,7 @@ export function useComposer() {
         clientId,
         analysisContext: analysisContextPayload,
       }, copy.status.requestFailed)
-      if (requestId !== requestIdRef.current || expectedKey !== latestInputRef.current) return
+      if (requestId !== requestIdRef.current || expectedKey !== latestInputRef.current || expectedVoiceCommand !== latestVoiceCommandRef.current) return
       if (result.updatedText === source) {
         setVoiceCommand('')
         setLastChanges([])
@@ -320,7 +323,7 @@ export function useComposer() {
       latestInputRef.current = analysisInputKey(result.updatedText, audience, locale, style)
       await analyzeCurrentDraft(result.updatedText, { preserveNote: true })
     } catch (err) {
-      if (requestId !== requestIdRef.current || expectedKey !== latestInputRef.current) return
+      if (requestId !== requestIdRef.current || expectedKey !== latestInputRef.current || expectedVoiceCommand !== latestVoiceCommandRef.current) return
       shouldRevealReviewRef.current = false
       setError(err instanceof Error ? err.message : copy.status.rewriteFailed)
     } finally {
