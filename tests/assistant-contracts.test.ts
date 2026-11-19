@@ -7,6 +7,7 @@ const validAnalysis = {
   verdict: 'Safe to send',
   reason: 'Clear and polite.',
   highlights: [],
+  languageFixes: [],
   suggestedText: 'Please share the update when you can.',
   localizedMeaning: 'Пожалуйста, пришлите обновление, когда сможете.',
   inferredGoal: 'Request an update',

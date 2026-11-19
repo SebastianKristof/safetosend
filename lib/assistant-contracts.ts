@@ -1,6 +1,14 @@
 import { z } from 'zod'
 
 export const audienceSchema = z.enum(['boss', 'client', 'colleague', 'partner', 'general'])
+export const stylePreferencesSchema = z.object({
+  formality: z.enum(['as_written', 'casual', 'professional_conversational', 'formal']).default('as_written'),
+  preserveTone: z.boolean().default(true),
+  englishVariant: z.enum(['auto', 'american', 'british']).default('auto'),
+  relationshipContext: z.string().max(500).default(''),
+}).strict()
+export type StylePreferences = z.infer<typeof stylePreferencesSchema>
+
 export const localeSchema = z.enum(['en', 'ru', 'es', 'de', 'fr'])
 export const verdictSchema = z.enum(['Safe to send', 'Risky - revise', 'Do not send yet'])
 export const editTypeSchema = z.enum([
@@ -31,6 +39,11 @@ export const analysisResponseSchema = z
     verdict: verdictSchema,
     reason: z.string().min(1),
     highlights: z.array(analysisHighlightSchema).max(5),
+    languageFixes: z.array(z.object({
+      text: z.string().min(1),
+      replacement: z.string(),
+      reason: z.string().min(1),
+    }).strict()).max(3),
     suggestedText: z.string().min(1),
     localizedMeaning: z.string().min(1),
     inferredGoal: z.string().min(1),
@@ -43,7 +56,7 @@ export const editResponseSchema = z
     editType: editTypeSchema,
     appliedToWholeDraft: z.boolean(),
     updatedText: z.string().min(1),
-    changes: z.array(editChangeSchema).min(1).max(3),
+    changes: z.array(editChangeSchema).max(3),
   })
   .strict()
 
@@ -53,6 +66,7 @@ export const assistantRequestSchema = z
     text: z.string().default(''),
     audience: audienceSchema,
     locale: localeSchema.default('en'),
+    style: stylePreferencesSchema.default({}),
     instruction: z.string().optional(),
     clientId: z.string().optional(),
     analysisContext: z

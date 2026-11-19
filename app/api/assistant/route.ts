@@ -1,10 +1,10 @@
+import { enforceAnalysisInvariants } from '@/lib/analysis-invariants'
 import { generateText, Output } from 'ai'
 import { NextResponse } from 'next/server'
 import {
   analysisResponseSchema,
   assistantRequestSchema,
   editResponseSchema,
-  type AnalysisResponse,
 } from '@/lib/assistant-contracts'
 import { getInferenceConfig, resolveInferenceModel } from '@/lib/inference-config'
 import {
@@ -14,28 +14,6 @@ import {
 } from '@/lib/assistant-prompts'
 import { MAX_DRAFT_CHARS } from '@/lib/draft-limits'
 import type { InferenceProvider } from '@/lib/inference-config'
-
-function normalizeDraftForCompare(text: string) {
-  return text.replace(/\s+/g, ' ').trim().toLowerCase()
-}
-
-function enforceAnalysisInvariants(result: AnalysisResponse, sourceDraft: string): AnalysisResponse {
-  const hasRed = result.highlights.some((highlight) => highlight.severity === 'red')
-  const hasHighlights = result.highlights.length > 0
-  const rewriteChanged = normalizeDraftForCompare(result.suggestedText) !== normalizeDraftForCompare(sourceDraft)
-
-  const next: AnalysisResponse = { ...result }
-
-  if (hasRed && next.verdict === 'Safe to send') {
-    next.verdict = 'Risky - revise'
-  }
-
-  if (hasHighlights && !rewriteChanged && !hasRed) {
-    next.highlights = []
-  }
-
-  return next
-}
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
@@ -123,7 +101,7 @@ export async function POST(request: Request) {
           schema: analysisResponseSchema,
         }),
         temperature: 0.2,
-        maxOutputTokens: 450,
+        maxOutputTokens: 1800,
         providerOptions: buildProviderOptions(slot.provider),
       })
 
@@ -146,12 +124,13 @@ export async function POST(request: Request) {
 
     const result = await generateText({
       model,
+      system: prompts.editSystem,
       prompt: buildEditPrompt(payload, prompts.editUser, prompts.audienceGuidance[payload.audience]),
       output: Output.object({
         schema: editResponseSchema,
       }),
       temperature: 0.35,
-      maxOutputTokens: 320,
+      maxOutputTokens: 1400,
       providerOptions: buildProviderOptions(slot.provider),
     })
 

@@ -1,7 +1,3 @@
-Use this guidance when the recipient does not fit the more specific categories or the relationship is unclear.
+Audience guidance: general
 
-- Use neutral, respectful, low-friction language.
-- When in doubt, prefer broadly professional wording that is safe across contexts.
-- Insults, contempt, sarcasm, or passive aggression are red.
-- Keep the message easy to understand and simple to process.
-- Preserve the user's intent without making unnecessary assumptions about the relationship.
+Assess the wording and context provided. Do not manufacture a universally formal recipient. Missing relationship details do not establish a need for greater formality. Preserve the apparent register unless the user selects another target. Avoid unsupported assumptions about familiarity.

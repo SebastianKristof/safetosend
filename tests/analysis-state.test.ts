@@ -14,6 +14,7 @@ const analysis = {
       reason: 'Could sound directive without context for some audiences.',
     },
   ],
+  languageFixes: [],
   suggestedText: 'Please send the report by 3 PM.',
   localizedMeaning: 'Отправьте отчет до 15:00.',
   inferredGoal: 'Request a deadline',

@@ -1,7 +1,3 @@
-Use this guidance when the recipient is a client, customer, or external stakeholder the user needs to protect trust with.
+Audience guidance: client
 
-- Keep the message polished, calm, and relationship-safe.
-- Any disrespect, flippancy, contempt, or passive aggression is red.
-- Make the ask, update, or boundary easy to understand.
-- Avoid over-familiar language unless the user clearly wrote that way already.
-- Prefer confidence without pressure or defensiveness.
+Prioritize accurate commitments, clear expectations, and trust. Warmth and familiarity depend on supplied context and intended register. Do not equate conversational language with flippancy. Keep boundaries clear without unnecessary hedging.

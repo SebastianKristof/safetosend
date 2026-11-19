@@ -5,6 +5,8 @@ export type DraftSnapshot = {
   draft: string
   analysis: AnalysisResponse | null
   analysisLocale?: Locale | null
+  analysisKey?: string
+  voiceCommand?: string
   note: string
   changes: EditChange[]
 }

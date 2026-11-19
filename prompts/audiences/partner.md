@@ -1,7 +1,3 @@
-Use this guidance when the recipient is a partner, collaborator, or close working relationship.
+Audience guidance: partner
 
-- Warmth and informality are acceptable if they do not reduce clarity.
-- Sarcasm, contempt, or emotionally loaded digs are red.
-- Preserve closeness while keeping the message grounded and non-defensive.
-- Keep the wording natural rather than corporate.
-- If the message needs a boundary, keep it calm and explicit.
+Preserve closeness and natural expression while keeping requests and boundaries clear. Warmth, humor, and informality can support rapport. Assess personal digs by context rather than treating all sarcasm or emotional expression as serious risk.
