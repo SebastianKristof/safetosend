@@ -152,33 +152,30 @@ export function useComposer() {
     return () => window.clearTimeout(timer)
   }, [copied])
   const verdictTone = useMemo(() => {
-    if (!analysis || analysisKey !== inputKey) {
-      return 'neutral'
-    }
-    return verdictStyle(analysis.verdict)
-  }, [analysis, analysisKey, inputKey])
+    if (!visibleAnalysis) return 'neutral'
+    return verdictStyle(visibleAnalysis.verdict)
+  }, [visibleAnalysis])
   const draftIsStale = Boolean(analysis) && analysisKey !== inputKey
+  // No LLM-generated text is allowed to leak across interface languages.
+  const visibleAnalysis = analysis && !draftIsStale && analysisLocale === locale ? analysis : null
   const draftTooLong = workingText.trim().length > MAX_DRAFT_CHARS
   const analysisHighlights = useMemo<HighlightSpan[]>(() => {
-    if (draftIsStale || !analysis?.highlights?.length) {
-      return []
-    }
-    return analysis.highlights.map((highlight) => ({
+    if (!visibleAnalysis?.highlights?.length) return []
+    return visibleAnalysis.highlights.map((highlight) => ({
       text: highlight.text,
       tone: highlight.severity,
       label: highlight.reason,
     }))
-  }, [analysis, draftIsStale])
+  }, [visibleAnalysis])
   const analysisHighlightReasons = useMemo(() => {
-    if (draftIsStale || !analysis?.highlights?.length) {
-      return []
-    }
-    return analysis.highlights.map((highlight) => ({
+    if (!visibleAnalysis?.highlights?.length) return []
+    return visibleAnalysis.highlights.map((highlight) => ({
       tone: highlight.severity,
       reason: highlight.reason,
     }))
-  }, [analysis, draftIsStale])
+  }, [visibleAnalysis])
   const rewriteHighlights = useMemo<HighlightSpan[]>(() => {
+    if (analysisLocale !== locale) return []
     return lastChanges
       .filter((change) => change.after.trim())
       .map((change) => ({
@@ -186,16 +183,13 @@ export function useComposer() {
         tone: 'green' as const,
         label: change.summary,
       }))
-  }, [lastChanges])
+  }, [lastChanges, analysisLocale, locale])
   const localizedMeaning = useMemo(() => {
-    return getLocalizedMeaning({ analysis, analysisLocale, draftIsStale, locale })
-  }, [analysis, analysisLocale, draftIsStale, locale])
+    return getLocalizedMeaning({ analysis: visibleAnalysis, analysisLocale, draftIsStale, locale })
+  }, [visibleAnalysis, analysisLocale, draftIsStale, locale])
   const analysisContextPayload = useMemo(() => {
-    if (!analysis || draftIsStale || analysisLocale !== locale) {
-      return undefined
-    }
-    return buildAnalysisContextPayload(analysis)
-  }, [analysis, analysisLocale, draftIsStale, locale])
+    return buildAnalysisContextPayload(visibleAnalysis)
+  }, [visibleAnalysis])
   function currentSnapshot(note = lastChangeNote): DraftSnapshot {
     return {
       version,
@@ -231,11 +225,12 @@ export function useComposer() {
   })
   async function analyzeCurrentDraft(
     textToAnalyze: string,
-    options?: { preserveNote?: boolean },
+    options?: { preserveNote?: boolean; localeOverride?: Locale },
   ) {
     const preserveNote = options?.preserveNote ?? false
+    const requestLocale = options?.localeOverride ?? locale
     const requestId = ++requestIdRef.current
-    const expectedKey = analysisInputKey(textToAnalyze, audience, locale, style)
+    const expectedKey = analysisInputKey(textToAnalyze, audience, requestLocale, style)
     setStatus('analyzing')
     setError(null)
     try {
@@ -244,25 +239,51 @@ export function useComposer() {
         text: textToAnalyze,
         audience,
         style,
-        locale,
+        locale: requestLocale,
         clientId,
-        analysisContext: analysisContextPayload,
-      }, copy.status.requestFailed)
+        // A language change must not feed an analysis in the previous language back to the model.
+        analysisContext: options?.localeOverride ? undefined : analysisContextPayload,
+      }, getCopy(requestLocale).status.requestFailed)
       if (requestId !== requestIdRef.current || expectedKey !== latestInputRef.current) return
       setAnalysis(result)
       setAnalysisKey(expectedKey)
-      setAnalysisLocale(locale)
+      setAnalysisLocale(requestLocale)
       if (!preserveNote || result.verdict !== 'Safe to send' || result.highlights.length || result.languageFixes.length) {
-        setLastChangeNote(copy.status.analysisUpdated)
+        setLastChangeNote(getCopy(requestLocale).status.analysisUpdated)
       }
     } catch (err) {
       if (requestId !== requestIdRef.current || expectedKey !== latestInputRef.current) return
       shouldRevealReviewRef.current = false
-      setError(err instanceof Error ? err.message : copy.status.analysisFailed)
+      setError(err instanceof Error ? err.message : getCopy(requestLocale).status.analysisFailed)
     } finally {
       if (requestId === requestIdRef.current) setStatus('idle')
     }
   }
+  function changeInterfaceLanguage(nextLocale: Locale) {
+    if (nextLocale === locale) return
+    const draft = workingText.trim()
+    const shouldRecheck = Boolean(analysis) || status === 'analyzing' || status === 'rewriting'
+
+    // Invalidate any previous in-flight analysis/rewrite before changing state.
+    requestIdRef.current += 1
+    latestInputRef.current = analysisInputKey(workingText, audience, nextLocale, style)
+    shouldRevealReviewRef.current = false
+    setLocale(nextLocale)
+    setAnalysis(null)
+    setAnalysisKey('')
+    setAnalysisLocale(null)
+    setLastChanges([]) // these explanations were created in the previous language
+    setLastChangeNote(getCopy(nextLocale).status.startDraft)
+    setError(null)
+    setStatus('idle')
+
+    // Fresh analysis includes all explanatory text, language corrections,
+    // reasons and a new verification translation for the *unchanged* draft.
+    if (shouldRecheck && draft.length >= 3 && draft.length <= MAX_DRAFT_CHARS) {
+      void analyzeCurrentDraft(draft, { preserveNote: true, localeOverride: nextLocale })
+    }
+  }
+
   async function runCheck() {
     const source = workingText.trim()
     if (source.length < 3) {
@@ -491,7 +512,7 @@ export function useComposer() {
       void stopAndTranscribe()
     }
   }, [isRecording, isTranscribing, stopAndTranscribe])
-  const verdictLabel = draftIsStale ? styleCopy.stale : analysis ? localizedVerdict(analysis.verdict, copy) : copy.panel.ready
+  const verdictLabel = draftIsStale ? styleCopy.stale : visibleAnalysis ? localizedVerdict(visibleAnalysis.verdict, copy) : copy.panel.ready
   const interactionBusy = status !== 'idle' || isRecording || isStarting || isTranscribing || draftDictation.isRecording || draftDictation.isStarting || draftDictation.isTranscribing
   // Reveal fresh results only after a requested analysis, not when restoring a saved draft.
   useEffect(() => {
@@ -506,5 +527,5 @@ export function useComposer() {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     panel.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' })
   }, [analysis, status])
-  return { workingText, setWorkingText, audience, setAudience, voiceCommand, setVoiceCommand, style, setStyle, locale, setLocale, analysis, past, future, status, error, setError, copied, isTranscribing, voiceSupported, isRecording, isStarting, level, recorderError, draftDictation, copy, styleCopy, audienceOptions, localeOptions, editorSelectionRef, mobileReviewRef, draftIsStale, draftTooLong, analysisHighlights, analysisHighlightReasons, rewriteHighlights, localizedMeaning, verdictTone, verdictLabel, interactionBusy, runCheck, runRewrite, undoLastChange, redoLastChange, copyWorkingText, pasteIntoDraft, clearDraft, startVoiceCapture, requestVoiceStop, cancelVoiceCapture, setLastChanges, lastChanges, lastChangeNote }
+  return { workingText, setWorkingText, audience, setAudience, voiceCommand, setVoiceCommand, style, setStyle, locale, setLocale: changeInterfaceLanguage, analysis, visibleAnalysis, past, future, status, error, setError, copied, isTranscribing, voiceSupported, isRecording, isStarting, level, recorderError, draftDictation, copy, styleCopy, audienceOptions, localeOptions, editorSelectionRef, mobileReviewRef, draftIsStale, draftTooLong, analysisHighlights, analysisHighlightReasons, rewriteHighlights, localizedMeaning, verdictTone, verdictLabel, interactionBusy, runCheck, runRewrite, undoLastChange, redoLastChange, copyWorkingText, pasteIntoDraft, clearDraft, startVoiceCapture, requestVoiceStop, cancelVoiceCapture, setLastChanges, lastChanges, lastChangeNote }
 }
