@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { buildAnalysisContextPayload, getLocalizedMeaning } from '../lib/analysis-state.ts'
+import { buildAnalysisContextPayload, getLocalizedMeaning, getVisibleAnalysis } from '../lib/analysis-state.ts'
 import type { AnalysisResponse } from '../lib/assistant-contracts.ts'
 
 const analysis = {
@@ -81,4 +81,11 @@ test('getLocalizedMeaning only shows matching non-English analysis results', () 
     }),
     '',
   )
+})
+
+test('old-language explanations must not appear after switching UI language', () => {
+  assert.equal(getVisibleAnalysis({ analysis, analysisLocale: 'en', locale: 'fr', draftIsStale: false }), null)
+  assert.equal(getVisibleAnalysis({ analysis, analysisLocale: 'ru', locale: 'en', draftIsStale: false }), null)
+  assert.equal(getVisibleAnalysis({ analysis, analysisLocale: 'ru', locale: 'ru', draftIsStale: true }), null)
+  assert.deepEqual(getVisibleAnalysis({ analysis, analysisLocale: 'ru', locale: 'ru', draftIsStale: false }), analysis)
 })
