@@ -26,6 +26,20 @@ export function buildAnalysisContextPayload(analysis: AnalysisResponse | null): 
   }
 }
 
+/**
+ * Only expose LLM-generated copy for the currently selected locale and draft.
+ * The interface may switch languages before an in-flight request completes.
+ */
+export function getVisibleAnalysis(params: {
+  analysis: AnalysisResponse | null
+  analysisLocale: Locale | null | undefined
+  locale: Locale
+  draftIsStale: boolean
+}): AnalysisResponse | null {
+  const { analysis, analysisLocale, locale, draftIsStale } = params
+  return analysis && !draftIsStale && analysisLocale === locale ? analysis : null
+}
+
 export function getLocalizedMeaning(params: {
   analysis: Pick<AnalysisResponse, 'localizedMeaning'> | null
   analysisLocale: Locale | null | undefined
