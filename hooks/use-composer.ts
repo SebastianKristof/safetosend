@@ -512,7 +512,7 @@ export function useComposer() {
       void stopAndTranscribe()
     }
   }, [isRecording, isTranscribing, stopAndTranscribe])
-  const verdictLabel = draftIsStale ? styleCopy.stale : visibleAnalysis ? localizedVerdict(visibleAnalysis.verdict, copy) : copy.panel.ready
+  const verdictLabel = status === 'analyzing' ? copy.status.analyzing : draftIsStale ? styleCopy.stale : visibleAnalysis ? localizedVerdict(visibleAnalysis.verdict, copy) : copy.panel.ready
   const interactionBusy = status !== 'idle' || isRecording || isStarting || isTranscribing || draftDictation.isRecording || draftDictation.isStarting || draftDictation.isTranscribing
   // Reveal fresh results only after a requested analysis, not when restoring a saved draft.
   useEffect(() => {
