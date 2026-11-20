@@ -2,7 +2,7 @@
 import type { useComposer } from '@/hooks/use-composer'
 
 export function ReviewPanel({ model, placement }: { model: ReturnType<typeof useComposer>; placement: 'mobile' | 'desktop' }) {
-  const { analysis, visibleAnalysis, draftIsStale, copy, styleCopy, verdictTone, verdictLabel, analysisHighlightReasons, localizedMeaning, locale, mobileReviewRef, workingText } = model
+  const { analysis, visibleAnalysis, draftIsStale, status, copy, styleCopy, verdictTone, verdictLabel, analysisHighlightReasons, localizedMeaning, locale, mobileReviewRef, workingText } = model
   return (
     <aside className={`insight-column ${placement}-review`} ref={placement === 'mobile' ? mobileReviewRef : undefined}>
           <section className="panel insights-panel">
@@ -17,7 +17,7 @@ export function ReviewPanel({ model, placement }: { model: ReturnType<typeof use
           <p className="analysis-meta">
             {visibleAnalysis
             ? `${copy.analysis.likelyIntent}: ${visibleAnalysis.inferredGoal} · ${copy.analysis.tone}: ${visibleAnalysis.recommendedTone}`
-            : copy.analysis.resultsPlaceholder}
+            : status === 'analyzing' ? copy.buttons.checking : copy.analysis.resultsPlaceholder}
           </p>
           {draftIsStale ? <p className="reason-text">{styleCopy.recheck}</p> : null}
           {visibleAnalysis ? (
