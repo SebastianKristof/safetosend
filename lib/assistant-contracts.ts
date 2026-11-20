@@ -51,6 +51,10 @@ export const analysisResponseSchema = z
   })
   .strict()
 
+// Verification is generated independently from the analysis, using only the original draft.
+export const analysisModelResponseSchema = analysisResponseSchema.omit({ localizedMeaning: true })
+export const meaningResponseSchema = z.object({ localizedMeaning: z.string().min(1) }).strict()
+
 export const editResponseSchema = z
   .object({
     editType: editTypeSchema,
