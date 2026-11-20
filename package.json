@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "next dev --webpack",
+    "prebuild": "npm test",
     "build": "next build --webpack",
     "start": "next start",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
