@@ -22,6 +22,8 @@ type PromptBundle = {
   analyzeSystem: string
   editSystem: string
   analyzeUser: string
+  meaningSystem: string
+  meaningUser: string
   editUser: string
   audienceGuidance: Record<Audience, string>
 }
@@ -35,9 +37,11 @@ async function readPrompt(relativePath: string) {
 
 export async function getPromptBundle() {
   if (process.env.NODE_ENV === 'development') {
-    const [analyzeSystem, analyzeUser, editUser, boss, client, colleague, partner, general, editSystem] = await Promise.all([
+    const [analyzeSystem, analyzeUser, meaningSystem, meaningUser, editUser, boss, client, colleague, partner, general, editSystem] = await Promise.all([
       readPrompt('prompts/analyze-system.md'),
       readPrompt('prompts/analyze-user.md'),
+      readPrompt('prompts/meaning-system.md'),
+      readPrompt('prompts/meaning-user.md'),
       readPrompt('prompts/edit-user.md'),
       readPrompt('prompts/audiences/boss.md'),
       readPrompt('prompts/audiences/client.md'),
@@ -51,6 +55,8 @@ export async function getPromptBundle() {
       analyzeSystem,
       editSystem,
       analyzeUser,
+      meaningSystem,
+      meaningUser,
       editUser,
       audienceGuidance: {
         boss,
@@ -66,6 +72,8 @@ export async function getPromptBundle() {
     promptBundlePromise = Promise.all([
       readPrompt('prompts/analyze-system.md'),
       readPrompt('prompts/analyze-user.md'),
+      readPrompt('prompts/meaning-system.md'),
+      readPrompt('prompts/meaning-user.md'),
       readPrompt('prompts/edit-user.md'),
       readPrompt('prompts/audiences/boss.md'),
       readPrompt('prompts/audiences/client.md'),
@@ -74,11 +82,13 @@ export async function getPromptBundle() {
       readPrompt('prompts/audiences/general.md'),
       readPrompt('prompts/edit-system.md'),
     ]).then(
-      ([analyzeSystem, analyzeUser, editUser, boss, client, colleague, partner, general, editSystem]) =>
+      ([analyzeSystem, analyzeUser, meaningSystem, meaningUser, editUser, boss, client, colleague, partner, general, editSystem]) =>
         ({
           analyzeSystem,
           editSystem,
           analyzeUser,
+          meaningSystem,
+          meaningUser,
           editUser,
           audienceGuidance: {
             boss,
@@ -114,6 +124,14 @@ export function buildAnalysisPrompt(
     preserve_tone: String(request.style.preserveTone),
     english_variant: request.style.englishVariant,
     relationship_context: JSON.stringify(request.style.relationshipContext || 'Not supplied'),
+  })
+}
+
+export function buildMeaningPrompt(request: AssistantRequest, template: string) {
+  return renderPrompt(template, {
+    locale: request.locale,
+    language_name: languageName[request.locale],
+    text: request.text.trim(),
   })
 }
 
