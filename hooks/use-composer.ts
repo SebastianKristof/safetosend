@@ -4,7 +4,7 @@ import { stylePreferencesSchema } from '@/lib/assistant-contracts'
 import type { AnalysisResponse, Audience, EditChange, EditResponse, Locale, StylePreferences } from '@/lib/assistant-contracts'
 import type { DraftSnapshot } from '@/lib/assistant-client'
 import type { HighlightSpan, EditorSelection } from '@/components/composer-controls'
-import { buildAnalysisContextPayload, getLocalizedMeaning } from '@/lib/analysis-state'
+import { buildAnalysisContextPayload, getLocalizedMeaning, getVisibleAnalysis } from '@/lib/analysis-state'
 import { MAX_DRAFT_CHARS } from '@/lib/draft-limits'
 import { useAudioRecorder } from '@/hooks/use-audio-recorder'
 import { useTimedDictation } from '@/hooks/use-timed-dictation'
@@ -153,7 +153,7 @@ export function useComposer() {
   }, [copied])
   const draftIsStale = Boolean(analysis) && analysisKey !== inputKey
   // No LLM-generated text is allowed to leak across interface languages.
-  const visibleAnalysis = analysis && !draftIsStale && analysisLocale === locale ? analysis : null
+  const visibleAnalysis = getVisibleAnalysis({ analysis, analysisLocale, locale, draftIsStale })
   const verdictTone = useMemo(() => {
     if (!visibleAnalysis) return 'neutral'
     return verdictStyle(visibleAnalysis.verdict)
