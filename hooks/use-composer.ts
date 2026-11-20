@@ -151,13 +151,13 @@ export function useComposer() {
     const timer = window.setTimeout(() => setCopied(false), 1200)
     return () => window.clearTimeout(timer)
   }, [copied])
+  const draftIsStale = Boolean(analysis) && analysisKey !== inputKey
+  // No LLM-generated text is allowed to leak across interface languages.
+  const visibleAnalysis = analysis && !draftIsStale && analysisLocale === locale ? analysis : null
   const verdictTone = useMemo(() => {
     if (!visibleAnalysis) return 'neutral'
     return verdictStyle(visibleAnalysis.verdict)
   }, [visibleAnalysis])
-  const draftIsStale = Boolean(analysis) && analysisKey !== inputKey
-  // No LLM-generated text is allowed to leak across interface languages.
-  const visibleAnalysis = analysis && !draftIsStale && analysisLocale === locale ? analysis : null
   const draftTooLong = workingText.trim().length > MAX_DRAFT_CHARS
   const analysisHighlights = useMemo<HighlightSpan[]>(() => {
     if (!visibleAnalysis?.highlights?.length) return []
